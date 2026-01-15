@@ -766,9 +766,30 @@
                     Data.loaded = true;
                     Data.concursoAtual = concurso.concurso;
                     
-                    // Atualizar análise
+                    // Atualizar análise com informações reais
                     Data.analysis.current.id = parseInt(concurso.concurso);
-                    Data.analysis.current.summary = `Concurso ${concurso.concurso} - Dados oficiais da Caixa`;
+                    
+                    // Formatar estimativa de prêmio
+                    const premio = concurso.estimativaPremio ? `R$ ${concurso.estimativaPremio}` : '1.5M';
+                    Data.analysis.current.acc = premio;
+                    
+                    // Usar data do concurso se disponível
+                    if (concurso.dataConcurso) {
+                        Data.analysis.current.summary = `Concurso ${concurso.concurso} (${concurso.dataConcurso}) - Dados oficiais da Caixa`;
+                    } else {
+                        Data.analysis.current.summary = `Concurso ${concurso.concurso} - Dados oficiais da Caixa`;
+                    }
+                    
+                    // Usar período de apostas se disponível
+                    if (concurso.periodoApostas) {
+                        Data.analysis.current.openDate = concurso.periodoApostas.split('até')[0].trim();
+                        Data.analysis.current.closeDate = concurso.periodoApostas.split('até')[1]?.trim() || concurso.periodoApostas;
+                    }
+                    
+                    // Usar realização dos jogos na análise completa
+                    if (concurso.realizacaoJogos) {
+                        Data.analysis.current.fullAnalysis = `Concurso ${concurso.concurso} com jogos realizados entre ${concurso.realizacaoJogos}. Confira os confrontos e faça seus palpites!`;
+                    }
                     
                     console.log(`Concurso ${concurso.concurso} carregado com sucesso!`);
                     
@@ -832,6 +853,19 @@
                         atualizado: firebase.firestore.FieldValue.serverTimestamp(),
                         atualizadoPor: firebase.auth().currentUser.email
                     };
+                    
+                    // Adicionar campos específicos de programação
+                    if (dados.tipo === 'programacao') {
+                        if (dados.dataConcurso) docData.dataConcurso = dados.dataConcurso;
+                        if (dados.periodoApostas) docData.periodoApostas = dados.periodoApostas;
+                        if (dados.realizacaoJogos) docData.realizacaoJogos = dados.realizacaoJogos;
+                    }
+                    
+                    // Adicionar campos específicos de resultados
+                    if (dados.tipo === 'resultado') {
+                        if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
+                        if (dados.dataLimiteVendas) docData.dataLimiteVendas = dados.dataLimiteVendas;
+                    }
                     
                     // Salvar no Firestore como rascunho
                     const db = firebase.firestore();

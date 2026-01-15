@@ -3,201 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loteca Pro - Bookmarklet de Extração</title>
+    <title>Bookmarklet - Loteca Pro</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 40px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-        
         .container {
-            max-width: 900px;
-            margin: 0 auto;
             background: white;
             border-radius: 20px;
             padding: 40px;
+            max-width: 800px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        
         h1 {
-            color: #2d3748;
-            font-size: 2.5em;
+            color: #667eea;
+            font-size: 32px;
             margin-bottom: 10px;
-            text-align: center;
         }
-        
         .subtitle {
-            text-align: center;
-            color: #718096;
-            font-size: 1.2em;
-            margin-bottom: 40px;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
         }
-        
-        .step {
-            background: #f7fafc;
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-        }
-        
-        .step-number {
+        .bookmarklet-btn {
             display: inline-block;
-            background: #667eea;
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 30px;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        
-        .step h2 {
-            display: inline;
-            color: #2d3748;
-            font-size: 1.3em;
-        }
-        
-        .step p {
-            color: #4a5568;
-            line-height: 1.6;
-            margin-top: 10px;
-            margin-left: 40px;
-        }
-        
-        .bookmarklet-area {
-            background: #2d3748;
-            padding: 30px;
-            border-radius: 12px;
-            margin: 30px 0;
-            text-align: center;
-        }
-        
-        .bookmarklet-area p {
-            color: #cbd5e0;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-        }
-        
-        .bookmarklet-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px 40px;
-            font-size: 1.5em;
-            font-weight: bold;
-            text-decoration: none;
             border-radius: 50px;
-            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 20px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: move;
         }
-        
-        .bookmarklet-button:hover {
+        .bookmarklet-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.6);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
         }
-        
-        .warning {
-            background: #fff5f5;
-            border: 2px solid #fc8181;
-            border-radius: 8px;
+        .instructions {
+            margin-top: 40px;
+            background: #f7fafc;
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+        .instructions h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+            color: #333;
+        }
+        .instructions li {
+            margin-bottom: 15px;
+        }
+        .instructions strong {
+            color: #667eea;
+        }
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
             padding: 15px;
-            margin: 20px 0;
-            color: #c53030;
+            margin-top: 20px;
+            color: #856404;
         }
-        
-        .warning strong {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 1.1em;
+        .note strong {
+            color: #856404;
         }
-        
-        .success {
-            background: #f0fff4;
-            border: 2px solid #68d391;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px 0;
-            color: #22543d;
-        }
-        
-        .success strong {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 1.1em;
-        }
-        
-        code {
-            background: #edf2f7;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            color: #e53e3e;
+        .version {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Loteca Pro</h1>
-        <p class="subtitle">Extração Simplificada de Dados</p>
+        <h1>📋 Copiar Loteca</h1>
+        <p class="subtitle">Arraste o botão abaixo para seus favoritos</p>
         
-        <div class="success">
-            <strong>✅ Método Mais Simples Possível!</strong>
-            Arraste o botão abaixo para seus favoritos e clique nele quando estiver no site da Caixa. Pronto!
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="javascript:(function(){const url=window.location.href;const text=document.body.textContent;let data={};if(url.includes('Programacao-Loteca')){const concursoMatch=text.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const dataConcursoMatch=text.match(/Concurso\s+\d+\s+\(([^)]+)\)/);const dataConcurso=dataConcursoMatch?dataConcursoMatch[1]:'';const periodoMatch=text.match(/Período de apostas:\s*(.+?)(?=Realização|$)/s);const periodoApostas=periodoMatch?periodoMatch[1].trim().replace(/\s+/g,' '):'';const realizacaoMatch=text.match(/Realização dos jogos de futebol:\s*(.+?)(?=\n|Jogo|$)/);const realizacaoJogos=realizacaoMatch?realizacaoMatch[1].trim():'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),time2:cells[4].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'programacao',concurso:concurso,dataConcurso:dataConcurso,periodoApostas:periodoApostas,realizacaoJogos:realizacaoJogos,jogos:jogos}}else if(url.includes('Loteca.aspx')){const concursoMatch=text.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const premioMatch=text.match(/Estimativa de prêmio do próximo concurso[^R]*R\$\s*([\d.,]+)/);const estimativaPremio=premioMatch?premioMatch[1]:'';const dataVendasMatch=text.match(/com vendas até\s+(\d{2}\/\d{2}\/\d{4})/);const dataLimiteVendas=dataVendasMatch?dataVendasMatch[1]:'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),placar1:cells[3].textContent.trim(),time2:cells[4].textContent.trim(),placar2:cells[5].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'resultado',concurso:concurso,estimativaPremio:estimativaPremio,dataLimiteVendas:dataLimiteVendas,jogos:jogos}}else{alert('❌ Por favor, acesse a página de Programação ou Resultados da Loteca!');return}const jsonStr=JSON.stringify(data,null,2);const textarea=document.createElement('textarea');textarea.value=jsonStr;textarea.style.position='fixed';textarea.style.top='50%';textarea.style.left='50%';textarea.style.transform='translate(-50%,-50%)';textarea.style.width='80%';textarea.style.height='60%';textarea.style.padding='20px';textarea.style.fontSize='14px';textarea.style.fontFamily='monospace';textarea.style.border='3px solid #667eea';textarea.style.borderRadius='10px';textarea.style.zIndex='999999';textarea.style.backgroundColor='white';textarea.style.boxShadow='0 20px 60px rgba(0,0,0,0.5)';document.body.appendChild(textarea);textarea.select();document.execCommand('copy');const overlay=document.createElement('div');overlay.style.position='fixed';overlay.style.top='0';overlay.style.left='0';overlay.style.width='100%';overlay.style.height='100%';overlay.style.backgroundColor='rgba(0,0,0,0.7)';overlay.style.zIndex='999998';document.body.appendChild(overlay);const msg=document.createElement('div');msg.innerHTML='<div style=\"position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#48bb78;color:white;padding:20px 40px;border-radius:50px;font-size:18px;font-weight:bold;z-index:1000000;box-shadow:0 10px 30px rgba(0,0,0,0.3);\">✅ Dados copiados! Cole no Painel Admin</div>';document.body.appendChild(msg);setTimeout(()=>{document.body.removeChild(textarea);document.body.removeChild(overlay);document.body.removeChild(msg)},3000)})();" 
+               class="bookmarklet-btn">
+                📋 Copiar Loteca
+            </a>
         </div>
         
-        <div class="bookmarklet-area">
-            <p>👇 <strong>ARRASTE ESTE BOTÃO</strong> para a barra de favoritos do seu navegador 👇</p>
-            <a href="javascript:(function(){const url=window.location.href;let data={};if(url.includes('Programacao-Loteca')){const concursoMatch=document.body.textContent.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),time2:cells[4].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'programacao',concurso:concurso,jogos:jogos}}else if(url.includes('Loteca.aspx')){const concursoMatch=document.body.textContent.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),placar1:cells[3].textContent.trim(),time2:cells[4].textContent.trim(),placar2:cells[5].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'resultado',concurso:concurso,jogos:jogos}}else{alert('❌ Por favor, acesse a página de Programação ou Resultados da Loteca!');return}const jsonStr=JSON.stringify(data,null,2);const textarea=document.createElement('textarea');textarea.value=jsonStr;textarea.style.position='fixed';textarea.style.top='50%';textarea.style.left='50%';textarea.style.transform='translate(-50%,-50%)';textarea.style.width='80%';textarea.style.height='60%';textarea.style.padding='20px';textarea.style.fontSize='14px';textarea.style.fontFamily='monospace';textarea.style.border='3px solid #667eea';textarea.style.borderRadius='10px';textarea.style.zIndex='999999';textarea.style.backgroundColor='white';textarea.style.boxShadow='0 20px 60px rgba(0,0,0,0.5)';document.body.appendChild(textarea);textarea.select();document.execCommand('copy');const overlay=document.createElement('div');overlay.style.position='fixed';overlay.style.top='0';overlay.style.left='0';overlay.style.width='100%';overlay.style.height='100%';overlay.style.backgroundColor='rgba(0,0,0,0.7)';overlay.style.zIndex='999998';document.body.appendChild(overlay);const msg=document.createElement('div');msg.innerHTML='<div style=&quot;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#48bb78;color:white;padding:20px 40px;border-radius:50px;font-size:18px;font-weight:bold;z-index:1000000;box-shadow:0 10px 30px rgba(0,0,0,0.3);&quot;>✅ Dados copiados! Cole no Painel Admin</div>';document.body.appendChild(msg);setTimeout(()=>{document.body.removeChild(textarea);document.body.removeChild(overlay);document.body.removeChild(msg)},3000)})();" class="bookmarklet-button">📋 Copiar Loteca</a>
+        <div class="instructions">
+            <h2>📖 Como usar</h2>
+            <ol>
+                <li><strong>Arraste</strong> o botão rosa acima para a barra de favoritos do seu navegador</li>
+                <li><strong>Acesse</strong> a página da Caixa:
+                    <ul style="margin-top: 10px;">
+                        <li><a href="https://loterias.caixa.gov.br/Paginas/Programacao-Loteca.aspx" target="_blank" style="color: #667eea;">Programação</a> (próximo concurso)</li>
+                        <li><a href="https://loterias.caixa.gov.br/Paginas/Loteca.aspx" target="_blank" style="color: #667eea;">Resultados</a> (concurso anterior)</li>
+                    </ul>
+                </li>
+                <li><strong>Clique</strong> no botão "📋 Copiar Loteca" que você salvou nos favoritos</li>
+                <li><strong>Aguarde</strong> a mensagem verde "✅ Dados copiados!"</li>
+                <li><strong>Cole</strong> (Ctrl+V) no <a href="https://loteca-pro-mateus-1767825041.web.app?page=admin" target="_blank" style="color: #667eea;">Painel Admin</a></li>
+            </ol>
+            
+            <div class="note">
+                <strong>⚠️ Importante:</strong> Se você já tinha o bookmarklet instalado, DELETE o antigo e instale este novo! Esta versão captura informações adicionais como período de apostas e estimativa de prêmio.
+            </div>
         </div>
         
-        <div class="step">
-            <span class="step-number">1</span>
-            <h2>Arraste o Botão</h2>
-            <p>Clique e <strong>arraste</strong> o botão rosa acima para a barra de favoritos do seu navegador (geralmente fica no topo da janela).</p>
-        </div>
-        
-        <div class="step">
-            <span class="step-number">2</span>
-            <h2>Acesse o Site da Caixa</h2>
-            <p>Vá para uma destas páginas:</p>
-            <p>
-                • <strong>Programação:</strong> <a href="https://loterias.caixa.gov.br/Paginas/Programacao-Loteca.aspx" target="_blank">https://loterias.caixa.gov.br/Paginas/Programacao-Loteca.aspx</a><br>
-                • <strong>Resultados:</strong> <a href="https://loterias.caixa.gov.br/Paginas/Loteca.aspx" target="_blank">https://loterias.caixa.gov.br/Paginas/Loteca.aspx</a>
-            </p>
-        </div>
-        
-        <div class="step">
-            <span class="step-number">3</span>
-            <h2>Clique no Favorito</h2>
-            <p>Clique no botão <code>📋 Copiar Loteca</code> que você salvou nos favoritos. Os dados serão <strong>copiados automaticamente</strong>!</p>
-        </div>
-        
-        <div class="step">
-            <span class="step-number">4</span>
-            <h2>Cole no Painel Admin</h2>
-            <p>Acesse o <a href="https://loteca-pro-mateus-1767825041.web.app?page=admin" target="_blank">Painel Admin</a>, cole os dados (Ctrl+V) e clique em <strong>PROCESSAR</strong>.</p>
-        </div>
-        
-        <div class="warning">
-            <strong>⚠️ Importante:</strong>
-            O bookmarklet só funciona nas páginas oficiais da Caixa. Se clicar em outro site, aparecerá uma mensagem de erro.
-        </div>
-        
-        <div class="success">
-            <strong>🎉 Pronto!</strong>
-            Agora você pode atualizar o Loteca Pro com apenas 2 cliques!
+        <div class="version">
+            Versão 2.0 - Atualizado em 15/01/2026
         </div>
     </div>
 </body>

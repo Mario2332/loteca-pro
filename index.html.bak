@@ -964,25 +964,13 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     // Atualizar análise do concurso anterior
                     Data.analysis.previous.id = parseInt(concurso.concurso);
                     
-                    // Atualizar ganhadores
-                    if (concurso.ganhadores14 !== undefined) {
-                        Data.analysis.previous.winners = concurso.ganhadores14;
-                    }
-                    
-                    // Atualizar acumulação
-                    if (concurso.acumulou !== undefined) {
-                        Data.analysis.previous.accumulated = concurso.acumulou;
-                    }
-                    
                     // Carregar análise gerada pela IA
                     if (concurso.analise) {
                         Data.analysis.previous.summary = concurso.analise.resumo;
                         Data.analysis.previous.fullAnalysis = concurso.analise.detalhada;
                     } else {
                         // Fallback se não tiver análise
-                        const ganhadores = concurso.ganhadores14 || 0;
-                        const acumulou = concurso.acumulou ? 'Acumulou!' : `${ganhadores} ganhador${ganhadores !== 1 ? 'es' : ''}`;
-                        Data.analysis.previous.summary = `Concurso ${concurso.concurso} - ${acumulou}`;
+                        Data.analysis.previous.summary = `Concurso ${concurso.concurso} - Resultados oficiais`;
                         if (concurso.jogos && concurso.jogos.length > 0) {
                             const totalJogos = concurso.jogos.length;
                             Data.analysis.previous.fullAnalysis = `Concurso ${concurso.concurso} finalizado com ${totalJogos} jogos. Confira os resultados e placares abaixo.`;
@@ -1060,11 +1048,9 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     }
                     
                     // Adicionar campos específicos de resultados
-                    if (dados.tipo === 'resultados' || dados.tipo === 'resultado') {
+                    if (dados.tipo === 'resultado') {
                         if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
-                        if (dados.ganhadores14 !== undefined) docData.ganhadores14 = dados.ganhadores14;
-                        if (dados.ganhadores13) docData.ganhadores13 = dados.ganhadores13;
-                        if (dados.acumulou !== undefined) docData.acumulou = dados.acumulou;
+                        if (dados.dataLimiteVendas) docData.dataLimiteVendas = dados.dataLimiteVendas;
                     }
                     
                     // Salvar no Firestore como rascunho
@@ -1219,11 +1205,9 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     }
                     
                     // Adicionar campos específicos de resultados
-                    if (dados.tipo === 'resultados' || dados.tipo === 'resultado') {
+                    if (dados.tipo === 'resultado') {
                         if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
-                        if (dados.ganhadores14 !== undefined) docData.ganhadores14 = dados.ganhadores14;
-                        if (dados.ganhadores13) docData.ganhadores13 = dados.ganhadores13;
-                        if (dados.acumulou !== undefined) docData.acumulou = dados.acumulou;
+                        if (dados.dataLimiteVendas) docData.dataLimiteVendas = dados.dataLimiteVendas;
                     }
                     
                     await db.collection('concursos_publicados').doc(dados.concurso).set(docData);

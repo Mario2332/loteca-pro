@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bookmarklet - Loteca Pro</title>
+    <title>Bookmarklet Loteca Pro v3.0</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -23,108 +23,100 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         h1 {
-            color: #667eea;
             font-size: 32px;
+            font-weight: 900;
+            color: #667eea;
             margin-bottom: 10px;
         }
-        .subtitle {
-            color: #666;
+        .version {
+            color: #764ba2;
+            font-weight: 600;
             margin-bottom: 30px;
-            font-size: 16px;
         }
-        .bookmarklet-btn {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .bookmarklet {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
             padding: 20px 40px;
             border-radius: 50px;
-            text-decoration: none;
-            font-weight: bold;
             font-size: 20px;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 900;
+            text-decoration: none;
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(240, 147, 251, 0.4);
+            transition: transform 0.2s;
             cursor: move;
         }
-        .bookmarklet-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        .bookmarklet:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(240, 147, 251, 0.6);
         }
         .instructions {
-            margin-top: 40px;
-            background: #f7fafc;
-            padding: 30px;
-            border-radius: 15px;
-            border-left: 5px solid #667eea;
+            margin-top: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
         }
         .instructions h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-            font-size: 24px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
         }
         .instructions ol {
             margin-left: 20px;
-            line-height: 1.8;
-            color: #333;
         }
         .instructions li {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            color: #555;
+            line-height: 1.6;
         }
-        .instructions strong {
-            color: #667eea;
-        }
-        .note {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            color: #856404;
-        }
-        .note strong {
-            color: #856404;
-        }
-        .version {
-            text-align: center;
-            margin-top: 30px;
-            color: #999;
-            font-size: 14px;
+        .badge {
+            background: #48bb78;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="badge">✨ NOVO</div>
         <h1>📋 Copiar Loteca</h1>
-        <p class="subtitle">Arraste o botão abaixo para seus favoritos</p>
+        <p class="version">Versão 3.0 - Dados Completos</p>
         
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="javascript:(function(){const url=window.location.href;const text=document.body.textContent;let data={};if(url.includes('Programacao-Loteca')){const concursoMatch=text.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const dataConcursoMatch=text.match(/Concurso\s+\d+\s+\(([^)]+)\)/);const dataConcurso=dataConcursoMatch?dataConcursoMatch[1]:'';const periodoMatch=text.match(/Período de apostas:\s*(.+?)(?=Realização|$)/s);const periodoApostas=periodoMatch?periodoMatch[1].trim().replace(/\s+/g,' '):'';const realizacaoMatch=text.match(/Realização dos jogos de futebol:\s*(.+?)(?=\n|Jogo|$)/);const realizacaoJogos=realizacaoMatch?realizacaoMatch[1].trim():'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),time2:cells[4].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'programacao',concurso:concurso,dataConcurso:dataConcurso,periodoApostas:periodoApostas,realizacaoJogos:realizacaoJogos,jogos:jogos}}else if(url.includes('Loteca.aspx')){const concursoMatch=text.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const premioMatch=text.match(/Estimativa de prêmio do próximo concurso[^R]*R\$\s*([\d.,]+)/);const estimativaPremio=premioMatch?premioMatch[1]:'';const dataVendasMatch=text.match(/com vendas até\s+(\d{2}\/\d{2}\/\d{4})/);const dataLimiteVendas=dataVendasMatch?dataVendasMatch[1]:'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),placar1:cells[3].textContent.trim(),time2:cells[4].textContent.trim(),placar2:cells[5].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'resultado',concurso:concurso,estimativaPremio:estimativaPremio,dataLimiteVendas:dataLimiteVendas,jogos:jogos}}else{alert('❌ Por favor, acesse a página de Programação ou Resultados da Loteca!');return}const jsonStr=JSON.stringify(data,null,2);const textarea=document.createElement('textarea');textarea.value=jsonStr;textarea.style.position='fixed';textarea.style.top='50%';textarea.style.left='50%';textarea.style.transform='translate(-50%,-50%)';textarea.style.width='80%';textarea.style.height='60%';textarea.style.padding='20px';textarea.style.fontSize='14px';textarea.style.fontFamily='monospace';textarea.style.border='3px solid #667eea';textarea.style.borderRadius='10px';textarea.style.zIndex='999999';textarea.style.backgroundColor='white';textarea.style.boxShadow='0 20px 60px rgba(0,0,0,0.5)';document.body.appendChild(textarea);textarea.select();document.execCommand('copy');const overlay=document.createElement('div');overlay.style.position='fixed';overlay.style.top='0';overlay.style.left='0';overlay.style.width='100%';overlay.style.height='100%';overlay.style.backgroundColor='rgba(0,0,0,0.7)';overlay.style.zIndex='999998';document.body.appendChild(overlay);const msg=document.createElement('div');msg.innerHTML='<div style=\"position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#48bb78;color:white;padding:20px 40px;border-radius:50px;font-size:18px;font-weight:bold;z-index:1000000;box-shadow:0 10px 30px rgba(0,0,0,0.3);\">✅ Dados copiados! Cole no Painel Admin</div>';document.body.appendChild(msg);setTimeout(()=>{document.body.removeChild(textarea);document.body.removeChild(overlay);document.body.removeChild(msg)},3000)})();" 
-               class="bookmarklet-btn">
-                📋 Copiar Loteca
-            </a>
-        </div>
+        <p style="margin-bottom: 30px; color: #666;">
+            Arraste o botão abaixo para sua barra de favoritos:
+        </p>
+        
+        <a href="javascript:(function(){const url=window.location.href;const text=document.body.textContent;let data={};if(url.includes('Programacao-Loteca')){const concursoMatch=text.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const dataConcursoMatch=text.match(/Concurso\s+\d+\s+\(([^)]+)\)/);const dataConcurso=dataConcursoMatch?dataConcursoMatch[1]:'';const periodoMatch=text.match(/Período de apostas:\s*(.+?)(?=Realização|$)/s);const periodoApostas=periodoMatch?periodoMatch[1].trim().replace(/\s+/g,' '):'';const realizacaoMatch=text.match(/Realização dos jogos de futebol:\s*(.+?)(?=\n|Jogo|$)/);const realizacaoJogos=realizacaoMatch?realizacaoMatch[1].trim():'';const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[2].textContent.trim(),time2:cells[4].textContent.trim(),data:cells[6].textContent.trim()})}})}data={tipo:'programacao',concurso:concurso,dataConcurso:dataConcurso,periodoApostas:periodoApostas,realizacaoJogos:realizacaoJogos,jogos:jogos}}else if(url.includes('Loteca.aspx')){const concursoMatch=text.match(/Concurso\s+(\d+)/);const concurso=concursoMatch?concursoMatch[1]:'';const premioMatch=text.match(/Estimativa de prêmio do próximo concurso[^R]*R\$\s*([\d.,]+)/);const estimativaPremio=premioMatch?premioMatch[1]:'';let ganhadores14=0;const ganhadores14Match=text.match(/1º \(14 acertos\)[^\n]*\n([^\n]+)/);if(ganhadores14Match){const texto=ganhadores14Match[1];if(texto.includes('Não houve')){ganhadores14=0}else{const numMatch=texto.match(/(\d+)\s+aposta/);if(numMatch){ganhadores14=parseInt(numMatch[1])}}}let ganhadores13={quantidade:0,valorPorAposta:'0,00'};const ganhadores13Match=text.match(/2º \(13 acertos\)[^\n]*\n([^\n]+)/);if(ganhadores13Match){const texto=ganhadores13Match[1];const numMatch=texto.match(/(\d+)\s+aposta/);const valorMatch=texto.match(/R\$\s*([\d.,]+)/);if(numMatch){ganhadores13.quantidade=parseInt(numMatch[1])}if(valorMatch){ganhadores13.valorPorAposta=valorMatch[1]}}const acumulou=text.includes('Acumulou!');const table=document.querySelector('table');const jogos=[];if(table){const rows=table.querySelectorAll('tbody tr');rows.forEach((row,idx)=>{const cells=row.querySelectorAll('td');if(cells.length>=7){jogos.push({jogo:idx+1,time1:cells[1].textContent.trim(),placar1:parseInt(cells[0].textContent.trim())||0,time2:cells[3].textContent.trim(),placar2:parseInt(cells[4].textContent.trim())||0,data:cells[5].textContent.trim()})}})}data={tipo:'resultados',concurso:concurso,estimativaPremio:estimativaPremio,ganhadores14:ganhadores14,ganhadores13:ganhadores13,acumulou:acumulou,jogos:jogos}}const jsonStr=JSON.stringify(data,null,2);const textarea=document.createElement('textarea');textarea.value=jsonStr;textarea.style.position='fixed';textarea.style.top='50%';textarea.style.left='50%';textarea.style.transform='translate(-50%,-50%)';textarea.style.width='80%';textarea.style.height='60%';textarea.style.padding='20px';textarea.style.fontSize='14px';textarea.style.fontFamily='monospace';textarea.style.border='3px solid #667eea';textarea.style.borderRadius='10px';textarea.style.zIndex='999999';textarea.style.backgroundColor='white';textarea.style.boxShadow='0 20px 60px rgba(0,0,0,0.5)';document.body.appendChild(textarea);textarea.select();document.execCommand('copy');const overlay=document.createElement('div');overlay.style.position='fixed';overlay.style.top='0';overlay.style.left='0';overlay.style.width='100%';overlay.style.height='100%';overlay.style.backgroundColor='rgba(0,0,0,0.7)';overlay.style.zIndex='999998';document.body.appendChild(overlay);const msg=document.createElement('div');msg.innerHTML='<div style=\"position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#48bb78;color:white;padding:20px 40px;border-radius:50px;font-size:18px;font-weight:bold;z-index:1000000;box-shadow:0 10px 30px rgba(0,0,0,0.3);\">✅ Dados copiados! Cole no Painel Admin</div>';document.body.appendChild(msg);setTimeout(()=>{document.body.removeChild(textarea);document.body.removeChild(overlay);document.body.removeChild(msg)},3000)})();" class="bookmarklet">
+            📋 Copiar Loteca v3.0
+        </a>
         
         <div class="instructions">
-            <h2>📖 Como usar</h2>
+            <h2>📖 Como usar:</h2>
             <ol>
-                <li><strong>Arraste</strong> o botão rosa acima para a barra de favoritos do seu navegador</li>
-                <li><strong>Acesse</strong> a página da Caixa:
-                    <ul style="margin-top: 10px;">
-                        <li><a href="https://loterias.caixa.gov.br/Paginas/Programacao-Loteca.aspx" target="_blank" style="color: #667eea;">Programação</a> (próximo concurso)</li>
-                        <li><a href="https://loterias.caixa.gov.br/Paginas/Loteca.aspx" target="_blank" style="color: #667eea;">Resultados</a> (concurso anterior)</li>
-                    </ul>
-                </li>
-                <li><strong>Clique</strong> no botão "📋 Copiar Loteca" que você salvou nos favoritos</li>
-                <li><strong>Aguarde</strong> a mensagem verde "✅ Dados copiados!"</li>
-                <li><strong>Cole</strong> (Ctrl+V) no <a href="https://loteca-pro-mateus-1767825041.web.app?page=admin" target="_blank" style="color: #667eea;">Painel Admin</a></li>
+                <li><strong>Arraste</strong> o botão rosa acima para sua barra de favoritos</li>
+                <li><strong>Acesse</strong> o site da Caixa (Programação ou Resultados)</li>
+                <li><strong>Clique</strong> no favorito "📋 Copiar Loteca v3.0"</li>
+                <li><strong>Pronto!</strong> Os dados foram copiados automaticamente</li>
+                <li><strong>Cole</strong> no Painel Admin (Ctrl+V)</li>
             </ol>
-            
-            <div class="note">
-                <strong>⚠️ Importante:</strong> Se você já tinha o bookmarklet instalado, DELETE o antigo e instale este novo! Esta versão captura informações adicionais como período de apostas e estimativa de prêmio.
-            </div>
         </div>
         
-        <div class="version">
-            Versão 2.0 - Atualizado em 15/01/2026
+        <div class="instructions" style="margin-top: 20px; border-left-color: #48bb78;">
+            <h2>✨ Novidades v3.0:</h2>
+            <ol>
+                <li>✅ Captura <strong>ganhadores 14 acertos</strong></li>
+                <li>✅ Captura <strong>ganhadores 13 acertos</strong> + valor</li>
+                <li>✅ Captura <strong>estimativa de prêmio</strong></li>
+                <li>✅ Captura <strong>placares</strong> dos resultados</li>
+                <li>✅ Detecta se <strong>acumulou</strong></li>
+            </ol>
         </div>
     </div>
 </body>

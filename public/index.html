@@ -772,25 +772,39 @@
             },
             
             gerarPromptProgramacao(dados) {
-                const jogosTexto = dados.jogos.map(j => `${j.jogo}. ${j.time1} x ${j.time2} (${j.data})`).join('\n');
+                const jogosTexto = dados.jogos.map(j => `${j.jogo}. ${j.time1} (mandante) x ${j.time2} (visitante) - ${j.data}`).join('\n');
                 
-                return `Você é um analista especialista em Loteca/futebol brasileiro. Analise a programação do concurso ${dados.concurso} e gere:
+                return `Você é um analista especialista em Loteca e futebol brasileiro.
 
-1. RESUMO (1 linha, máximo 120 caracteres): Destaque os principais jogos e clássicos
-2. ANÁLISE DETALHADA (2-3 parágrafos): Analise os confrontos, favoritos, derbies, jogos decisivos
+Analise a programação do concurso ${dados.concurso} da Loteca:
 
-Programação:
 ${jogosTexto}
 
+IMPORTANTE:
+- O primeiro time é o MANDANTE (joga em casa)
+- O segundo time é o VISITANTE (joga fora)
+- Use formato: "Time1 x Time2" nas análises
+
+Gere:
+
+1. RESUMO (máximo 120 caracteres):
+Frase curta destacando os principais clássicos ou jogos importantes.
+
+2. ANÁLISE DETALHADA (2-3 parágrafos):
+- Destaque os principais clássicos e derbies
+- Analise os confrontos mais importantes
+- Mencione times favoritos e possíveis zebras
+- Contexto dos campeonatos
+
 Data: ${dados.dataConcurso || 'N/A'}
-Período de apostas: ${dados.periodoApostas || 'N/A'}
+Período: ${dados.periodoApostas || 'N/A'}
 Realização: ${dados.realizacaoJogos || 'N/A'}
 
-Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes. Seja objetivo e profissional.`;
+Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes.`;
             },
             
             gerarPromptResultados(dados) {
-                const jogosTexto = dados.jogos.map(j => `${j.jogo}. ${j.time1} ${j.placar1} x ${j.placar2} ${j.time2}`).join('\n');
+                const jogosTexto = dados.jogos.map(j => `${j.jogo}. ${j.time1} (mandante) ${j.placar1} x ${j.placar2} ${j.time2} (visitante)`).join('\n');
                 
                 // Calcular estatísticas
                 let vitoriasMandante = 0, empates = 0, vitoriasVisitante = 0;
@@ -950,13 +964,25 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     // Atualizar análise do concurso anterior
                     Data.analysis.previous.id = parseInt(concurso.concurso);
                     
+                    // Atualizar ganhadores
+                    if (concurso.ganhadores14 !== undefined) {
+                        Data.analysis.previous.winners = concurso.ganhadores14;
+                    }
+                    
+                    // Atualizar acumulação
+                    if (concurso.acumulou !== undefined) {
+                        Data.analysis.previous.accumulated = concurso.acumulou;
+                    }
+                    
                     // Carregar análise gerada pela IA
                     if (concurso.analise) {
                         Data.analysis.previous.summary = concurso.analise.resumo;
                         Data.analysis.previous.fullAnalysis = concurso.analise.detalhada;
                     } else {
                         // Fallback se não tiver análise
-                        Data.analysis.previous.summary = `Concurso ${concurso.concurso} - Resultados oficiais`;
+                        const ganhadores = concurso.ganhadores14 || 0;
+                        const acumulou = concurso.acumulou ? 'Acumulou!' : `${ganhadores} ganhador${ganhadores !== 1 ? 'es' : ''}`;
+                        Data.analysis.previous.summary = `Concurso ${concurso.concurso} - ${acumulou}`;
                         if (concurso.jogos && concurso.jogos.length > 0) {
                             const totalJogos = concurso.jogos.length;
                             Data.analysis.previous.fullAnalysis = `Concurso ${concurso.concurso} finalizado com ${totalJogos} jogos. Confira os resultados e placares abaixo.`;
@@ -1034,9 +1060,11 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     }
                     
                     // Adicionar campos específicos de resultados
-                    if (dados.tipo === 'resultado') {
+                    if (dados.tipo === 'resultados' || dados.tipo === 'resultado') {
                         if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
-                        if (dados.dataLimiteVendas) docData.dataLimiteVendas = dados.dataLimiteVendas;
+                        if (dados.ganhadores14 !== undefined) docData.ganhadores14 = dados.ganhadores14;
+                        if (dados.ganhadores13) docData.ganhadores13 = dados.ganhadores13;
+                        if (dados.acumulou !== undefined) docData.acumulou = dados.acumulou;
                     }
                     
                     // Salvar no Firestore como rascunho
@@ -1191,9 +1219,11 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     }
                     
                     // Adicionar campos específicos de resultados
-                    if (dados.tipo === 'resultado') {
+                    if (dados.tipo === 'resultados' || dados.tipo === 'resultado') {
                         if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
-                        if (dados.dataLimiteVendas) docData.dataLimiteVendas = dados.dataLimiteVendas;
+                        if (dados.ganhadores14 !== undefined) docData.ganhadores14 = dados.ganhadores14;
+                        if (dados.ganhadores13) docData.ganhadores13 = dados.ganhadores13;
+                        if (dados.acumulou !== undefined) docData.acumulou = dados.acumulou;
                     }
                     
                     await db.collection('concursos_publicados').doc(dados.concurso).set(docData);

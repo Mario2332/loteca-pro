@@ -109,9 +109,12 @@
             authDomain: "loteca-pro-mateus-1767825041.firebaseapp.com",
             projectId: "loteca-pro-mateus-1767825041",
             storageBucket: "loteca-pro-mateus-1767825041.firebasestorage.app",
-            messagingSenderId: "681743764404",
-            appId: "1:681743764404:web:55424de18875b57a45c0e1"
+            messagingSenderId: "1767825041",
+            appId: "1:1767825041:web:abc123"
         };
+        
+        // Chave da API do Gemini para análise com IA
+        const GEMINI_API_KEY = "AIzaSyDc9-JkpRElOtT4vD1iDM3vdNndYFQenYQ";
         
         let isFirebaseActive = false;
         try {
@@ -723,7 +726,7 @@
                     
                     console.log('Prompt gerado, enviando para Gemini...');
                     
-                    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + firebaseConfig.apiKey, {
+                    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + GEMINI_API_KEY, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

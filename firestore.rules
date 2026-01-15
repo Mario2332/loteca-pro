@@ -13,11 +13,21 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Concursos (programação e resultados)
+    // Concursos (rascunhos) - apenas admin
     match /concursos/{concursoId} {
-      // Todos podem ler
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // Concursos Publicados - todos podem ler, apenas admin escreve
+    match /concursos_publicados/{concursoId} {
       allow read: if true;
-      // Apenas admin pode escrever
+      allow write: if isAdmin();
+    }
+    
+    // Configuração - todos podem ler, apenas admin escreve
+    match /config/{docId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
     
@@ -45,15 +55,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
-    // Configurações do sistema
-    match /config/{configId} {
-      // Todos podem ler
-      allow read: if true;
-      // Apenas admin pode escrever
-      allow write: if isAdmin();
-    }
-    
-    // Dados da Loteca (compatibilidade)
+    // Dados da Loteca (compatibilidade - deprecated)
     match /loteca/{document=**} {
       allow read: if true;
       allow write: if isAdmin();

@@ -123,6 +123,8 @@
 
         // --- DATA ---
         const Data = {
+            loaded: false,
+            concursoAtual: null,
             games: [
                 { id: 1, tour: "BRA A", date: "Sáb 16:30", home: { name: "Flamengo", short: "FLA" }, away: { name: "Palmeiras", short: "PAL" }, probs: { h: 45, d: 30, a: 25 }, comm: { h: 50, d: 30, a: 20 }, analysis: "O Flamengo vem de sequência invicta no Maracanã, enfrentando o líder Palmeiras." },
                 { id: 2, tour: "BRA B", date: "Sáb 17:00", home: { name: "Santos", short: "SAN" }, away: { name: "Ceará", short: "CEA" }, probs: { h: 60, d: 25, a: 15 }, comm: { h: 70, d: 20, a: 10 }, analysis: "Santos absoluto na Vila Belmiro, busca manter 100% em casa." },
@@ -518,6 +520,22 @@
                     </div>
                     
                     <div id="admin-feedback" class="hidden bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm"></div>
+                    
+                    <!-- PREVIEW E PUBLICAÇÃO -->
+                    <div id="preview-container" class="hidden">
+                        <div class="bg-app-surface p-6 rounded-xl border border-white/5">
+                            <h3 class="text-white font-bold text-xl mb-4"><i class="fas fa-eye mr-2"></i>Preview - Confira os Dados</h3>
+                            <div id="preview-content" class="space-y-4"></div>
+                            <div class="flex gap-4 mt-6">
+                                <button onclick="AdminActions.publicar()" class="flex-1 py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-all text-lg">
+                                    <i class="fas fa-check-circle mr-2"></i>PUBLICAR NO SITE
+                                </button>
+                                <button onclick="AdminActions.cancelarPreview()" class="px-6 py-4 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold rounded-lg transition-all border border-red-500/50">
+                                    <i class="fas fa-times mr-2"></i>CANCELAR
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 `;
             },
@@ -693,6 +711,78 @@
             resetVotes: () => { localStorage.removeItem(Store.KEY_DATA); Router.render(); }
         };
 
+        // CARREGAR DADOS DO FIRESTORE
+        const DataLoader = {
+            async carregarConcursoAtual() {
+                if (!isFirebaseActive) return;
+                
+                try {
+                    const db = firebase.firestore();
+                    
+                    // Buscar config atual
+                    const configDoc = await db.collection('config').doc('atual').get();
+                    
+                    if (!configDoc.exists) {
+                        console.log('Nenhuma configuração encontrada. Usando dados fake.');
+                        return;
+                    }
+                    
+                    const config = configDoc.data();
+                    const concursoId = config.concursoProgramacao;
+                    
+                    if (!concursoId) {
+                        console.log('Nenhum concurso ativo. Usando dados fake.');
+                        return;
+                    }
+                    
+                    // Buscar dados do concurso publicado
+                    const concursoDoc = await db.collection('concursos_publicados').doc(concursoId).get();
+                    
+                    if (!concursoDoc.exists) {
+                        console.log('Concurso não encontrado. Usando dados fake.');
+                        return;
+                    }
+                    
+                    const concurso = concursoDoc.data();
+                    
+                    // Converter dados do Firestore para formato do Data.games
+                    Data.games = concurso.jogos.map(jogo => ({
+                        id: jogo.jogo,
+                        tour: 'Loteca',
+                        date: jogo.data || '-',
+                        home: { 
+                            name: jogo.time1,
+                            short: jogo.time1.split('/')[0].substring(0, 3).toUpperCase()
+                        },
+                        away: { 
+                            name: jogo.time2,
+                            short: jogo.time2.split('/')[0].substring(0, 3).toUpperCase()
+                        },
+                        probs: { h: 33, d: 34, a: 33 },
+                        comm: { h: 33, d: 34, a: 33 },
+                        analysis: `${jogo.time1} x ${jogo.time2}`
+                    }));
+                    
+                    Data.loaded = true;
+                    Data.concursoAtual = concurso.concurso;
+                    
+                    // Atualizar análise
+                    Data.analysis.current.id = parseInt(concurso.concurso);
+                    Data.analysis.current.summary = `Concurso ${concurso.concurso} - Dados oficiais da Caixa`;
+                    
+                    console.log(`Concurso ${concurso.concurso} carregado com sucesso!`);
+                    
+                    // Re-renderizar se já estiver na página
+                    if (State.currentRoute === 'home') {
+                        Router.render();
+                    }
+                    
+                } catch (error) {
+                    console.error('Erro ao carregar concurso:', error);
+                }
+            }
+        };
+        
         // ADMIN ACTIONS
         const AdminActions = {
             async processar(tipo) {
@@ -743,17 +833,25 @@
                         atualizadoPor: firebase.auth().currentUser.email
                     };
                     
-                    // Salvar no Firestore
+                    // Salvar no Firestore como rascunho
                     const db = firebase.firestore();
                     await db.collection('concursos').doc(dados.concurso).set(docData, { merge: true });
                     
+                    // Armazenar dados para preview
+                    window.dadosPreview = dados;
+                    
+                    // Mostrar preview
+                    AdminActions.mostrarPreview(dados);
+                    
+                    // Limpar textarea
+                    textarea.value = '';
+                    
                     // Feedback de sucesso
                     const feedback = document.getElementById('admin-feedback');
-                    feedback.textContent = `✓ ${dados.tipo === 'programacao' ? 'Programação' : 'Resultados'} do Concurso ${dados.concurso} atualizado com sucesso!`;
+                    feedback.textContent = `✓ Dados salvos! Confira o preview abaixo e clique em PUBLICAR.`;
                     feedback.classList.remove('hidden');
                     feedback.classList.remove('bg-red-500/20', 'border-red-500/50', 'text-red-400');
                     feedback.classList.add('bg-green-500/20', 'border-green-500/50', 'text-green-400');
-                    textarea.value = '';
                     setTimeout(() => feedback.classList.add('hidden'), 5000);
                     
                 } catch (error) {
@@ -789,6 +887,111 @@
                 } catch (error) {
                     console.error('Erro ao carregar alertas:', error);
                 }
+            },
+            
+            mostrarPreview(dados) {
+                const container = document.getElementById('preview-container');
+                const content = document.getElementById('preview-content');
+                
+                // Gerar HTML do preview
+                let html = `
+                    <div class="bg-black/30 p-4 rounded-lg mb-4">
+                        <h4 class="text-white font-bold text-lg mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Concurso ${dados.concurso} - ${dados.tipo === 'programacao' ? 'Programação' : 'Resultados'}
+                        </h4>
+                        <p class="text-slate-400 text-sm">Total de jogos: ${dados.jogos.length}</p>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-white/10">
+                                    <th class="text-left py-2 px-3 text-slate-400 font-medium">Jogo</th>
+                                    <th class="text-left py-2 px-3 text-slate-400 font-medium">Time 1</th>
+                                    ${dados.tipo === 'resultado' ? '<th class="text-center py-2 px-2 text-slate-400 font-medium">Placar</th>' : ''}
+                                    <th class="text-left py-2 px-3 text-slate-400 font-medium">Time 2</th>
+                                    <th class="text-left py-2 px-3 text-slate-400 font-medium">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                dados.jogos.forEach(jogo => {
+                    html += `
+                        <tr class="border-b border-white/5 hover:bg-white/5">
+                            <td class="py-3 px-3 text-white font-bold">${jogo.jogo}</td>
+                            <td class="py-3 px-3 text-white">${jogo.time1}</td>
+                            ${dados.tipo === 'resultado' ? `<td class="py-3 px-2 text-center text-app-primary font-bold">${jogo.placar1} x ${jogo.placar2}</td>` : ''}
+                            <td class="py-3 px-3 text-white">${jogo.time2}</td>
+                            <td class="py-3 px-3 text-slate-400">${jogo.data || '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+                container.classList.remove('hidden');
+                
+                // Scroll para o preview
+                setTimeout(() => {
+                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            },
+            
+            async publicar() {
+                if (!window.dadosPreview) {
+                    alert('Nenhum dado para publicar!');
+                    return;
+                }
+                
+                try {
+                    const dados = window.dadosPreview;
+                    const db = firebase.firestore();
+                    
+                    // Copiar de concursos para concursos_publicados
+                    const docData = {
+                        concurso: dados.concurso,
+                        tipo: dados.tipo,
+                        jogos: dados.jogos,
+                        publicado: firebase.firestore.FieldValue.serverTimestamp(),
+                        publicadoPor: firebase.auth().currentUser.email,
+                        status: 'publicado'
+                    };
+                    
+                    await db.collection('concursos_publicados').doc(dados.concurso).set(docData);
+                    
+                    // Atualizar config/atual
+                    const configUpdate = {};
+                    if (dados.tipo === 'programacao') {
+                        configUpdate.concursoProgramacao = dados.concurso;
+                    } else {
+                        configUpdate.concursoResultado = dados.concurso;
+                    }
+                    configUpdate.ultimaAtualizacao = firebase.firestore.FieldValue.serverTimestamp();
+                    
+                    await db.collection('config').doc('atual').set(configUpdate, { merge: true });
+                    
+                    // Feedback
+                    alert(`✓ Concurso ${dados.concurso} publicado com sucesso!\n\nOs dados já estão visíveis para todos os usuários.`);
+                    
+                    // Limpar preview
+                    AdminActions.cancelarPreview();
+                    window.dadosPreview = null;
+                    
+                } catch (error) {
+                    alert('✗ Erro ao publicar: ' + error.message);
+                }
+            },
+            
+            cancelarPreview() {
+                document.getElementById('preview-container').classList.add('hidden');
+                window.dadosPreview = null;
             }
         };
 
@@ -800,6 +1003,9 @@
             Auth.init();
             Router.renderMenu();
             Router.render();
+            
+            // Carregar dados do Firestore
+            DataLoader.carregarConcursoAtual();
             
             // Carregar alertas se estiver na página admin
             if (State.currentRoute === 'admin' && Auth.user) {

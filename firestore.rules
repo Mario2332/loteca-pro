@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Dados da Loteca - leitura pública, escrita apenas por Cloud Functions
+    match /loteca/{document=**} {
+      allow read: if true;
+      allow write: if false; // Apenas Cloud Functions podem escrever
+    }
+    
+    // Palpites dos usuários - leitura pública, escrita apenas para usuários autenticados
+    match /palpites/{userId}/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Ranking - leitura pública, escrita apenas por Cloud Functions
+    match /ranking/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

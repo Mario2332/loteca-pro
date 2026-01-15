@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Loteca Pro - A Casa do Lotequeiro</title>
+    
+    <!-- EXTERNAL LIBS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <!-- CONFIGURAÇÃO TAILWIND -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        app: {
+                            bg: '#0f172a', surface: '#1e293b', surfaceLight: '#334155',
+                            primary: '#4ade80', secondary: '#facc15', danger: '#f87171',
+                            text: '#f1f5f9', muted: '#94a3b8', ai: '#8b5cf6', google: '#202124'
+                        }
+                    },
+                    fontFamily: { sans: ['system-ui', '-apple-system', 'sans-serif'] },
+                    animation: { 'fade-in': 'fadeIn 0.2s ease-in', 'pulse-slow': 'pulse 3s infinite' },
+                    keyframes: { fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } } }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { -webkit-tap-highlight-color: transparent; }
+        .nav-item { transition: all 0.2s ease; }
+        .nav-item.active { background-color: rgba(74, 222, 128, 0.1); color: #4ade80; border-bottom: 2px solid #4ade80; }
+    </style>
+</head>
+<body class="bg-app-bg text-app-text font-sans antialiased">
+
+    <!-- ANÚNCIO SUPERIOR FIXO -->
+    <div class="fixed top-0 left-0 w-full z-50 bg-black h-24 flex items-center justify-center border-b border-white/10">
+        <span class="text-xs text-slate-500 uppercase font-bold tracking-widest animate-pulse">
+            <i class="fas fa-ad mr-2"></i> Publicidade Premium (728x90)
+        </span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="bg-app-surface/95 backdrop-blur-md fixed top-24 left-0 w-full z-40 border-b border-white/5 h-16 flex items-center justify-between px-6">
+        <button onclick="Router.navigate('home')" class="flex items-center gap-3 focus:outline-none text-left group">
+            <div class="bg-gradient-to-tr from-green-600 to-app-primary w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-green-500/20 group-hover:scale-105 transition-transform">
+                <i class="fas fa-trophy text-black text-sm"></i>
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-base font-bold tracking-tight leading-none text-white">
+                    LOTECA<span class="text-app-primary">PRO</span>
+                </h1>
+                <span class="text-[9px] text-slate-400 font-medium tracking-wide">A casa do lotequeiro profissional!</span>
+            </div>
+        </button>
+        <div id="header-user-area" class="text-right"></div>
+    </header>
+
+    <!-- MENU HORIZONTAL -->
+    <nav class="fixed top-40 left-0 w-full z-30 bg-app-surface border-b border-white/5 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-center gap-2 py-3 overflow-x-auto no-scrollbar" id="horizontal-menu"></div>
+        </div>
+    </nav>
+
+    <!-- LAYOUT PRINCIPAL COM ANÚNCIOS LATERAIS -->
+    <div class="pt-56 pb-10 min-h-screen">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid grid-cols-12 gap-6">
+                <!-- ANÚNCIO LATERAL ESQUERDO -->
+                <aside class="col-span-2 hidden lg:block">
+                    <div class="sticky top-60 bg-black h-[600px] rounded-xl border border-white/10 flex items-center justify-center">
+                        <span class="text-[10px] text-slate-600 uppercase font-bold tracking-widest rotate-90">
+                            <i class="fas fa-ad mr-1"></i> 160x600
+                        </span>
+                    </div>
+                </aside>
+
+                <!-- CONTEÚDO PRINCIPAL -->
+                <main class="col-span-12 lg:col-span-8" id="main-content"></main>
+
+                <!-- ANÚNCIO LATERAL DIREITO -->
+                <aside class="col-span-2 hidden lg:block">
+                    <div class="sticky top-60 bg-black h-[600px] rounded-xl border border-white/10 flex items-center justify-center">
+                        <span class="text-[10px] text-slate-600 uppercase font-bold tracking-widest rotate-90">
+                            <i class="fas fa-ad mr-1"></i> 160x600
+                        </span>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyATC9NA-pXbdc8pD8IWdEIxFZ3wh04nUrE",
+            authDomain: "loteca-pro-mateus-1767825041.firebaseapp.com",
+            projectId: "loteca-pro-mateus-1767825041",
+            storageBucket: "loteca-pro-mateus-1767825041.firebasestorage.app",
+            messagingSenderId: "681743764404",
+            appId: "1:681743764404:web:55424de18875b57a45c0e1"
+        };
+        
+        let isFirebaseActive = false;
+        try {
+            if(!firebaseConfig.apiKey.includes("REPLACE")) {
+                firebase.initializeApp(firebaseConfig);
+                isFirebaseActive = true;
+            }
+        } catch(e) { console.error("Firebase Init Error", e); }
+
+        // --- DATA ---
+        const Data = {
+            games: [
+                { id: 1, tour: "BRA A", date: "Sáb 16:30", home: { name: "Flamengo", short: "FLA" }, away: { name: "Palmeiras", short: "PAL" }, probs: { h: 45, d: 30, a: 25 }, comm: { h: 50, d: 30, a: 20 }, analysis: "O Flamengo vem de sequência invicta no Maracanã, enfrentando o líder Palmeiras." },
+                { id: 2, tour: "BRA B", date: "Sáb 17:00", home: { name: "Santos", short: "SAN" }, away: { name: "Ceará", short: "CEA" }, probs: { h: 60, d: 25, a: 15 }, comm: { h: 70, d: 20, a: 10 }, analysis: "Santos absoluto na Vila Belmiro, busca manter 100% em casa." },
+                { id: 3, tour: "ING", date: "Sáb 18:30", home: { name: "West Ham", short: "WHU" }, away: { name: "Chelsea", short: "CHE" }, probs: { h: 30, d: 30, a: 40 }, comm: { h: 25, d: 35, a: 40 }, analysis: "Derby londrino equilibrado. Chelsea vem de vitória na Champions." },
+                { id: 4, tour: "ESP", date: "Dom 11:00", home: { name: "Sevilla", short: "SEV" }, away: { name: "Betis", short: "BET" }, probs: { h: 33, d: 34, a: 33 }, comm: { h: 30, d: 40, a: 30 }, analysis: "O 'Gran Derbi' de Sevilha. Sevilla em crise, mas joga em casa." },
+                { id: 5, tour: "BRA A", date: "Dom 16:00", home: { name: "Vasco", short: "VAS" }, away: { name: "Fortaleza", short: "FOR" }, probs: { h: 40, d: 30, a: 30 }, comm: { h: 45, d: 25, a: 30 }, analysis: "Vasco pressionado em São Januário após 3 derrotas seguidas." },
+                { id: 6, tour: "ITA", date: "Dom 16:00", home: { name: "Napoli", short: "NAP" }, away: { name: "Roma", short: "ROM" }, probs: { h: 50, d: 25, a: 25 }, comm: { h: 55, d: 25, a: 20 }, analysis: "Clássico italiano. Napoli favorito jogando no Diego Maradona." },
+                { id: 7, tour: "BRA B", date: "Dom 18:00", home: { name: "Sport", short: "SPT" }, away: { name: "Bahia", short: "BAH" }, probs: { h: 35, d: 35, a: 30 }, comm: { h: 30, d: 40, a: 30 }, analysis: "Clássico do Nordeste. Equilíbrio total na Ilha do Retiro." },
+                { id: 8, tour: "BRA A", date: "Dom 18:30", home: { name: "Atl-MG", short: "CAM" }, away: { name: "Cruzeiro", short: "CRU" }, probs: { h: 45, d: 35, a: 20 }, comm: { h: 40, d: 40, a: 20 }, analysis: "Clássico mineiro na Arena MRV. Galo busca vingança." },
+                { id: 9, tour: "ALE", date: "Dom 11:30", home: { name: "Dortmund", short: "BVB" }, away: { name: "Leipzig", short: "RBL" }, probs: { h: 40, d: 20, a: 40 }, comm: { h: 35, d: 30, a: 35 }, analysis: "Jogo aberto na Alemanha. Dois ataques poderosos." },
+                { id: 10, tour: "FRA", date: "Sáb 15:00", home: { name: "Lyon", short: "LYO" }, away: { name: "Marseille", short: "OM" }, probs: { h: 30, d: 40, a: 30 }, comm: { h: 25, d: 45, a: 30 }, analysis: "Lyon em crise profunda, mas o Olympique é sempre imprevisível." },
+                { id: 11, tour: "BRA A", date: "Sáb 21:00", home: { name: "Botafogo", short: "BOT" }, away: { name: "Fluminense", short: "FLU" }, probs: { h: 35, d: 30, a: 35 }, comm: { h: 33, d: 33, a: 34 }, analysis: "Clássico Vovô sempre imprevisível. Nilton Santos lotado." },
+                { id: 12, tour: "BRA B", date: "Sex 19:00", home: { name: "Goiás", short: "GOI" }, away: { name: "Vila Nova", short: "VIL" }, probs: { h: 55, d: 30, a: 15 }, comm: { h: 60, d: 25, a: 15 }, analysis: "Goiás foca no acesso. Vila Nova vem de 4 derrotas." },
+                { id: 13, tour: "BRA A", date: "Dom 16:00", home: { name: "São Paulo", short: "SPA" }, away: { name: "Corinthians", short: "COR" }, probs: { h: 40, d: 40, a: 20 }, comm: { h: 35, d: 45, a: 20 }, analysis: "Majestoso no Morumbi. São Paulo invicto no clássico em 2025." },
+                { id: 14, tour: "ESP 2", date: "Seg 16:00", home: { name: "Eibar", short: "EIB" }, away: { name: "Levante", short: "LEV" }, probs: { h: 33, d: 33, a: 34 }, comm: { h: 30, d: 40, a: 30 }, analysis: "Segundona espanhola. Triplo empate nas estatísticas." },
+            ],
+            analysis: {
+                current: { 
+                    id: 1105, 
+                    acc: "1.5M", 
+                    summary: "Concurso marcada por grandes clássicos regionais e derbies internacionais. Equilíbrio total nas estatísticas, com destaque para os confrontos brasileiros da Série A e B.",
+                    openDate: "Quinta, 16/01 às 10h",
+                    closeDate: "Sábado, 18/01 às 14h",
+                    fullAnalysis: "O concurso 1105 traz uma grade recheada de clássicos que prometem muita emoção. No Brasil, destaque para Flamengo x Palmeiras, que pode definir a liderança do Brasileirão. O Majestoso entre São Paulo e Corinthians também é um dos pontos altos, com o Tricolor invicto no clássico em 2025. Na Europa, o Gran Derbi espanhol entre Sevilla e Betis promete fogo, assim como o duelo italiano entre Napoli e Roma. A concurso exige atenção especial aos jogos da Série B, onde Goiás e Santos aparecem como favoritos em casa, mas zebras são sempre possíveis."
+                },
+                previous: { 
+                    id: 1104, 
+                    summary: "Concurso de zebras! Apenas 2 favoritos venceram. 6 empates surpreenderam os apostadores. O concurso acumulou após ninguém cravar os 14 resultados.",
+                    winners: 0,
+                    accumulated: true,
+                    fullAnalysis: "O concurso 1104 entrou para a história como uma das concursos mais imprevisíveis do ano. Com 6 empates (incluindo o surpreendente 2x2 entre Flamengo e Botafogo no Maracanã), os apostadores viram seus palpites ruírem. Apenas Santos e Palmeiras confirmaram o favoritismo, vencendo fora de casa. Na Europa, o Lyon surpreendeu ao vencer o PSG por 3x1, resultado que ninguém esperava. O resultado? Zero acertadores dos 14 jogos e prêmio acumulado para o próximo concurso. Análise detalhada de cada partida disponível abaixo."
+                }
+            },
+            news: [
+                { id: 1, teamId: 'cru', type: "chegada", title: "Gabigol no Cruzeiro", desc: "Empréstimo confirmado.", time: "2h", source: "ge", hot: true },
+                { id: 2, teamId: 'san', type: "renovacao", title: "Neymar Fica", desc: "Até 2026.", time: "5h", source: "UOL", hot: true },
+            ],
+            ranking: {
+                round: [
+                    { name: "MestreLoteca", points: 14, hits: 14, avatar: "ML" },
+                    { name: "DoutorZebra", points: 13, hits: 13, avatar: "DZ" },
+                    { name: "ReiDoTriplo", points: 12, hits: 12, avatar: "RT" },
+                    { name: "CraqueDoVolante", points: 11, hits: 11, avatar: "CV" },
+                    { name: "ZebraHunter", points: 10, hits: 10, avatar: "ZH" },
+                    { name: "PalpiteiroMor", points: 10, hits: 10, avatar: "PM" },
+                    { name: "LotecaLegend", points: 9, hits: 9, avatar: "LL" },
+                    { name: "AcertouTudo", points: 9, hits: 9, avatar: "AT" },
+                    { name: "BolãoMaster", points: 8, hits: 8, avatar: "BM" },
+                    { name: "GanhadorNato", points: 8, hits: 8, avatar: "GN" }
+                ],
+                month: [
+                    { name: "MestreLoteca", points: 142, hits: 142, rounds: 12, avatar: "ML" },
+                    { name: "DoutorZebra", points: 138, hits: 138, rounds: 12, avatar: "DZ" },
+                    { name: "ReiDoTriplo", points: 135, hits: 135, rounds: 12, avatar: "RT" },
+                    { name: "CraqueDoVolante", points: 130, hits: 130, rounds: 11, avatar: "CV" },
+                    { name: "ZebraHunter", points: 128, hits: 128, rounds: 11, avatar: "ZH" },
+                    { name: "PalpiteiroMor", points: 125, hits: 125, rounds: 11, avatar: "PM" },
+                    { name: "LotecaLegend", points: 122, hits: 122, rounds: 10, avatar: "LL" },
+                    { name: "AcertouTudo", points: 120, hits: 120, rounds: 10, avatar: "AT" },
+                    { name: "BolãoMaster", points: 118, hits: 118, rounds: 10, avatar: "BM" },
+                    { name: "GanhadorNato", points: 115, hits: 115, rounds: 9, avatar: "GN" }
+                ],
+                year: [
+                    { name: "MestreLoteca", points: 1420, hits: 1420, rounds: 120, avatar: "ML" },
+                    { name: "DoutorZebra", points: 1380, hits: 1380, rounds: 118, avatar: "DZ" },
+                    { name: "ReiDoTriplo", points: 1350, hits: 1350, rounds: 115, avatar: "RT" },
+                    { name: "CraqueDoVolante", points: 1300, hits: 1300, rounds: 112, avatar: "CV" },
+                    { name: "ZebraHunter", points: 1280, hits: 1280, rounds: 110, avatar: "ZH" },
+                    { name: "PalpiteiroMor", points: 1250, hits: 1250, rounds: 108, avatar: "PM" },
+                    { name: "LotecaLegend", points: 1220, hits: 1220, rounds: 105, avatar: "LL" },
+                    { name: "AcertouTudo", points: 1200, hits: 1200, rounds: 102, avatar: "AT" },
+                    { name: "BolãoMaster", points: 1180, hits: 1180, rounds: 100, avatar: "BM" },
+                    { name: "GanhadorNato", points: 1150, hits: 1150, rounds: 98, avatar: "GN" }
+                ]
+            }
+        };
+
+        // --- STORE ---
+        const Store = {
+            KEY_USER: 'loteca_user',
+            KEY_DATA: 'loteca_app_data',
+            getUser: () => JSON.parse(localStorage.getItem(Store.KEY_USER)),
+            saveUser: (user) => localStorage.setItem(Store.KEY_USER, JSON.stringify(user)),
+            getAppData: () => JSON.parse(localStorage.getItem(Store.KEY_DATA)) || { votes: {}, submitted: false },
+            saveAppData: (data) => localStorage.setItem(Store.KEY_DATA, JSON.stringify(data)),
+            setVote: (gid, type) => {
+                const d = Store.getAppData();
+                d.votes[gid] = type;
+                Store.saveAppData(d);
+            }
+        };
+
+        // --- AUTH ---
+        const Auth = {
+            user: Store.getUser(),
+            init: () => {
+                if(isFirebaseActive) {
+                    firebase.auth().onAuthStateChanged((user) => {
+                        if (user) {
+                            Auth.user = { name: user.displayName, email: user.email, avatar: user.displayName.substring(0,2).toUpperCase(), points: { total: 0 } };
+                            Store.saveUser(Auth.user);
+                        } else {
+                            Auth.user = Store.getUser();
+                        }
+                        Auth.renderHeader();
+                        Router.render();
+                    });
+                } else {
+                    Auth.user = Store.getUser();
+                    Auth.renderHeader();
+                }
+            },
+            loginWithGoogle: () => {
+                if(!isFirebaseActive) {
+                    alert("Firebase não configurado. Usando login simulado.");
+                    Router.openModal('login');
+                    return;
+                }
+                const provider = new firebase.auth.GoogleAuthProvider();
+                firebase.auth().signInWithPopup(provider).catch(e => alert("Erro no login: " + e.message));
+            },
+            logout: () => {
+                if(isFirebaseActive) firebase.auth().signOut();
+                localStorage.removeItem(Store.KEY_USER);
+                Auth.user = null;
+                Router.render();
+            },
+            renderHeader: () => {
+                const area = document.getElementById('header-user-area');
+                if(Auth.user) {
+                    area.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <div class="text-xs font-bold text-white leading-none">${Auth.user.name}</div>
+                                <button onclick="Auth.logout()" class="text-[9px] font-bold text-slate-500 hover:text-app-danger uppercase">Sair</button>
+                            </div>
+                            <div class="w-9 h-9 rounded-full bg-app-primary flex items-center justify-center text-xs font-black text-black">${Auth.user.avatar}</div>
+                        </div>
+                    `;
+                } else {
+                    area.innerHTML = `<button onclick="Router.openModal('login')" class="bg-white/5 hover:bg-white/10 text-white text-xs font-black px-5 py-2 rounded-full border border-white/10 transition-all">ENTRAR</button>`;
+                }
+            }
+        };
+
+        // --- VIEWS ---
+        const Views = {
+            Home: () => `
+                <div class="animate-fade-in space-y-6">
+                    <!-- CONCURSO ANTERIOR -->
+                    <section class="bg-app-surface p-5 rounded-xl border border-white/5 shadow-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Concurso Anterior #${Data.analysis.previous.id}</span>
+                            <span class="text-xs font-black ${Data.analysis.previous.accumulated ? 'text-app-primary' : 'text-slate-400'}">${Data.analysis.previous.accumulated ? 'ACUMULOU!' : Data.analysis.previous.winners + ' Ganhadores'}</span>
+                        </div>
+                        <p class="text-sm text-slate-300 mb-4 leading-relaxed">${Data.analysis.previous.summary}</p>
+                        <button onclick="Router.navigate('analysis-previous')" class="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-white transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-chart-line"></i> ANÁLISE DETALHADA
+                        </button>
+                    </section>
+
+                    <!-- PRÓXIMO CONCURSO -->
+                    <section class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl relative overflow-hidden">
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="bg-app-primary text-black text-[10px] font-black px-3 py-1 rounded-full uppercase">Aberto</span>
+                                <span class="text-xs font-bold text-slate-400 uppercase">Concurso #${Data.analysis.current.id}</span>
+                            </div>
+                            <h2 class="text-4xl font-black text-white mb-2">R$ ${Data.analysis.current.acc}</h2>
+                            <p class="text-sm text-slate-300 mb-4 leading-relaxed">${Data.analysis.current.summary}</p>
+                            <div class="grid grid-cols-2 gap-3 mb-4 text-xs">
+                                <div class="bg-black/20 p-3 rounded-lg">
+                                    <span class="text-slate-500 block mb-1">Abertura</span>
+                                    <span class="text-white font-bold">${Data.analysis.current.openDate}</span>
+                                </div>
+                                <div class="bg-black/20 p-3 rounded-lg">
+                                    <span class="text-slate-500 block mb-1">Encerramento</span>
+                                    <span class="text-white font-bold">${Data.analysis.current.closeDate}</span>
+                                </div>
+                            </div>
+                            <button onclick="Router.navigate('analysis-current')" class="w-full bg-app-primary hover:bg-green-400 text-black font-black py-4 px-6 rounded-xl shadow-lg shadow-green-500/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm">
+                                VER ANÁLISE E PALPITES <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <i class="fas fa-trophy absolute -right-8 -bottom-8 text-9xl text-white/5 -rotate-12"></i>
+                    </section>
+
+                    <!-- TABELA DO CONCURSO -->
+                    <div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden shadow-xl">
+                        <div class="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
+                            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest">Grade de Jogos - Concurso #${Data.analysis.current.id}</h3>
+                            <button onclick="Router.navigate('palpites')" class="text-xs font-bold text-app-primary hover:underline flex items-center gap-2">
+                                Dê o seu palpite e veja a aposta dos usuários <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="divide-y divide-white/5">
+                            ${Data.games.map(g => `
+                                <div class="p-3 flex items-center gap-4 hover:bg-white/[0.02] transition-colors">
+                                    <span class="text-xs font-black text-slate-600 w-6">${g.id}</span>
+                                    <div class="flex-1 grid grid-cols-3 items-center text-center gap-2">
+                                        <span class="text-right text-sm font-bold text-white uppercase truncate">${g.home.name}</span>
+                                        <span class="text-xs text-slate-600 font-black">X</span>
+                                        <span class="text-left text-sm font-bold text-white uppercase truncate">${g.away.name}</span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 w-20 text-right">${g.date}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `,
+            AnalysisPrevious: () => `
+                <div class="animate-fade-in space-y-6">
+                    <button onclick="Router.navigate('home')" class="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                    <div class="bg-app-surface p-6 rounded-2xl border border-white/5 shadow-2xl">
+                        <h2 class="text-2xl font-black text-white mb-2">Análise Completa - Concurso #${Data.analysis.previous.id}</h2>
+                        <div class="flex gap-3 mb-6">
+                            <span class="text-xs font-bold ${Data.analysis.previous.accumulated ? 'text-app-primary' : 'text-slate-400'} bg-black/30 px-3 py-1 rounded-full">${Data.analysis.previous.accumulated ? 'ACUMULOU' : Data.analysis.previous.winners + ' Ganhadores'}</span>
+                        </div>
+                        <div class="prose prose-invert max-w-none">
+                            <p class="text-sm text-slate-300 leading-relaxed">${Data.analysis.previous.fullAnalysis}</p>
+                        </div>
+                    </div>
+                    <div class="bg-app-surface p-6 rounded-2xl border border-white/5">
+                        <h3 class="text-lg font-bold text-white mb-4">Resultado de Cada Partida</h3>
+                        <div class="space-y-3">
+                            ${Data.games.slice(0, 5).map(g => `
+                                <div class="bg-black/20 p-4 rounded-lg">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-bold text-white">${g.home.name} 2 x 2 ${g.away.name}</span>
+                                        <span class="text-xs text-slate-500">${g.tour}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400">${g.analysis}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `,
+            AnalysisCurrent: () => `
+                <div class="animate-fade-in space-y-6">
+                    <button onclick="Router.navigate('home')" class="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                    <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
+                        <h2 class="text-2xl font-black text-white mb-2">Prévia do Concurso #${Data.analysis.current.id}</h2>
+                        <h3 class="text-3xl font-black text-app-primary mb-6">R$ ${Data.analysis.current.acc}</h3>
+                        <div class="prose prose-invert max-w-none mb-6">
+                            <p class="text-sm text-slate-300 leading-relaxed">${Data.analysis.current.fullAnalysis}</p>
+                        </div>
+                        <button onclick="Router.navigate('ai-xray')" class="w-full bg-app-ai hover:bg-purple-600 text-white font-black py-4 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-microchip"></i> VER RAIO X IA (ANÁLISE PREMIUM)
+                        </button>
+                    </div>
+                    <div class="bg-app-surface p-6 rounded-2xl border border-white/5">
+                        <h3 class="text-lg font-bold text-white mb-4">Análise de Cada Confronto</h3>
+                        <div class="space-y-3">
+                            ${Data.games.map(g => `
+                                <div class="bg-black/20 p-4 rounded-lg hover:bg-black/30 transition-colors">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-sm font-bold text-white">${g.home.name} x ${g.away.name}</span>
+                                        <span class="text-xs text-slate-500">${g.tour} • ${g.date}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 leading-relaxed">${g.analysis}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `,
+            Palpites: () => {
+                const data = Store.getAppData();
+                const isSubmitted = data.submitted;
+                const voteCount = Object.keys(data.votes).length;
+                const progress = Math.round((voteCount / 14) * 100);
+                return `
+                    <div class="animate-fade-in pb-20">
+                        <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl mb-6">
+                            <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-pen-to-square text-app-primary mr-2"></i>Seus Palpites - Concurso #${Data.analysis.current.id}</h2>
+                            <p class="text-sm text-slate-300 mb-4">Preencha todos os 14 jogos e veja como os outros usuários votaram!</p>
+                            <div class="flex gap-3">
+                                <button onclick="Router.navigate('ranking')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg py-3 text-xs font-bold text-white transition-all flex items-center justify-center gap-2">
+                                    <i class="fas fa-trophy"></i> VER RANKING
+                                </button>
+                                <button onclick="Router.navigate('ai-xray')" class="flex-1 bg-app-ai/20 hover:bg-app-ai/30 border border-app-ai/30 rounded-lg py-3 text-xs font-bold text-app-ai transition-all flex items-center justify-center gap-2">
+                                    <i class="fas fa-microchip"></i> RAIO X IA
+                                </button>
+                            </div>
+                        </div>
+                        ${!isSubmitted ? `
+                            <div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg">
+                                <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Progresso</span><span class="font-bold text-app-primary">${voteCount}/14</span></div>
+                                <div class="h-2 bg-black/40 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-green-600 to-app-primary transition-all duration-500" style="width: ${progress}%"></div></div>
+                            </div>
+                        ` : `<div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg flex items-center gap-3 border-l-4 border-app-primary"><div class="w-10 h-10 rounded-full bg-app-primary/20 flex items-center justify-center text-app-primary"><i class="fas fa-check text-xl"></i></div><div><h3 class="text-sm font-bold text-white">Enviado!</h3><p class="text-[10px] text-slate-300">Veja como os outros usuários votaram.</p></div><button onclick="Actions.resetVotes()" class="ml-auto text-[10px] text-slate-500 underline">Refazer</button></div>`}
+                        <div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden shadow-xl">
+                            ${Data.games.map(g => {
+                                const vote = data.votes[g.id];
+                                if (!isSubmitted) {
+                                    const renderCell = (type, label) => {
+                                        const isSel = vote === type;
+                                        let cls = isSel ? (type==='h'?'bg-green-500 text-black font-bold':(type==='d'?'bg-yellow-500 text-black font-bold':'bg-red-500 text-black font-bold')) : "bg-slate-800 text-slate-400";
+                                        return `<button onclick="Actions.vote(${g.id}, '${type}')" class="h-9 w-full rounded flex items-center justify-center text-xs transition-all ${cls} hover:scale-105">${isSel?'<i class="fas fa-check"></i>':label}</button>`;
+                                    };
+                                    return `<div class="grid grid-cols-12 gap-2 border-b border-white/5 items-center py-3 px-3"><div class="col-span-1 text-center text-xs font-bold text-slate-500">${g.id}</div><div class="col-span-4 text-right text-xs font-bold text-white truncate pr-2">${g.home.name}</div><div class="col-span-1">${renderCell('h','1')}</div><div class="col-span-1">${renderCell('d','X')}</div><div class="col-span-1">${renderCell('a','2')}</div><div class="col-span-4 text-left text-xs font-bold text-white truncate pl-2">${g.away.name}</div></div>`;
+                                } else {
+                                    const total = g.comm.h + g.comm.d + g.comm.a;
+                                    const percH = Math.round((g.comm.h / total) * 100);
+                                    const percD = Math.round((g.comm.d / total) * 100);
+                                    const percA = Math.round((g.comm.a / total) * 100);
+                                    return `
+                                        <div class="border-b border-white/5 p-4">
+                                            <div class="flex items-center justify-between mb-3">
+                                                <div class="flex-1">
+                                                    <div class="text-xs text-slate-500 mb-1">${g.tour} • ${g.date}</div>
+                                                    <div class="text-sm font-bold text-white">${g.home.name} <span class="text-slate-500">vs</span> ${g.away.name}</div>
+                                                </div>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-bold w-16 ${vote === 'h' ? 'text-app-primary' : 'text-slate-400'}">CASA</span>
+                                                    <div class="flex-1 bg-black/40 rounded-full h-6 overflow-hidden relative">
+                                                        <div class="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" style="width: ${percH}%"></div>
+                                                        <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">${percH}%</span>
+                                                    </div>
+                                                    ${vote === 'h' ? '<i class="fas fa-check-circle text-app-primary"></i>' : ''}
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-bold w-16 ${vote === 'd' ? 'text-app-primary' : 'text-slate-400'}">EMPATE</span>
+                                                    <div class="flex-1 bg-black/40 rounded-full h-6 overflow-hidden relative">
+                                                        <div class="absolute inset-0 bg-gradient-to-r from-yellow-600 to-yellow-400" style="width: ${percD}%"></div>
+                                                        <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">${percD}%</span>
+                                                    </div>
+                                                    ${vote === 'd' ? '<i class="fas fa-check-circle text-app-primary"></i>' : ''}
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-bold w-16 ${vote === 'a' ? 'text-app-primary' : 'text-slate-400'}">FORA</span>
+                                                    <div class="flex-1 bg-black/40 rounded-full h-6 overflow-hidden relative">
+                                                        <div class="absolute inset-0 bg-gradient-to-r from-red-600 to-red-400" style="width: ${percA}%"></div>
+                                                        <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">${percA}%</span>
+                                                    </div>
+                                                    ${vote === 'a' ? '<i class="fas fa-check-circle text-app-primary"></i>' : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                            }).join('')}
+                        </div>
+                        ${!isSubmitted ? `<div class="mt-6"><button onclick="Actions.submitVotes()" class="w-full bg-app-primary text-black font-bold py-4 rounded-xl shadow-xl text-sm">ENVIAR PALPITES</button></div>` : ''}
+                    </div>
+                `;
+            },
+            AiXray: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Raio X IA - Premium</h2><div class="bg-app-surface p-6 rounded-2xl border border-violet-500/30"><p class="text-sm text-slate-400">Análise de inteligência artificial em processamento...</p></div></div>`,
+            Market: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Mercado da Bola</h2><div class="bg-app-surface p-6 rounded-2xl border border-white/5"><p class="text-sm text-slate-400">Últimas transferências e rumores...</p></div></div>`,
+            
+            Admin: () => {
+                if (!Auth.user || Auth.user.email !== 'mateusmachado11m@gmail.com') {
+                    return `<div class="animate-fade-in text-center py-20"><i class="fas fa-lock text-6xl text-slate-700 mb-4"></i><p class="text-slate-500">Acesso Restrito</p></div>`;
+                }
+                return `
+                <div class="animate-fade-in space-y-6">
+                    <h2 class="text-white font-bold text-2xl mb-6"><i class="fas fa-shield-alt mr-2"></i>Painel Administrativo</h2>
+                    
+                    <!-- ALERTAS -->
+                    <div id="alertas-container" class="bg-app-surface p-6 rounded-xl border border-white/5">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-bell mr-2"></i>Alertas</h3>
+                        <div id="alertas-list" class="space-y-2">
+                            <p class="text-sm text-slate-400">Carregando...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- ATUALIZAR PROGRAMAÇÃO -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-white/5">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-calendar-plus mr-2"></i>Atualizar Programação</h3>
+                        <p class="text-sm text-slate-400 mb-4">Cole o HTML da página de programação da Caixa:</p>
+                        <textarea id="html-programacao" class="w-full h-40 bg-black/30 border border-white/10 rounded-lg p-3 text-white text-xs font-mono" placeholder="Cole o HTML aqui..."></textarea>
+                        <button onclick="AdminActions.processar('programacao')" class="mt-3 w-full py-3 bg-app-primary hover:bg-green-600 text-black font-bold rounded-lg transition-all">
+                            <i class="fas fa-upload mr-2"></i>PROCESSAR PROGRAMAÇÃO
+                        </button>
+                    </div>
+                    
+                    <!-- ATUALIZAR RESULTADOS -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-white/5">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-trophy mr-2"></i>Atualizar Resultados</h3>
+                        <p class="text-sm text-slate-400 mb-4">Cole o HTML da página de resultados da Caixa:</p>
+                        <textarea id="html-resultados" class="w-full h-40 bg-black/30 border border-white/10 rounded-lg p-3 text-white text-xs font-mono" placeholder="Cole o HTML aqui..."></textarea>
+                        <button onclick="AdminActions.processar('resultados')" class="mt-3 w-full py-3 bg-app-primary hover:bg-green-600 text-black font-bold rounded-lg transition-all">
+                            <i class="fas fa-upload mr-2"></i>PROCESSAR RESULTADOS
+                        </button>
+                    </div>
+                    
+                    <div id="admin-feedback" class="hidden bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm"></div>
+                </div>
+                `;
+            },
+            Prices: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Tabela de Preços</h2><div class="bg-app-surface p-6 rounded-2xl border border-white/5"><p class="text-sm text-slate-400">Preços oficiais da Caixa Econômica.</p></div></div>`,
+            Ranking: () => {
+                const [activeTab, setTab] = [State.rankingTab || 'round', (t) => { State.rankingTab = t; Router.render(); }];
+                const data = Data.ranking[activeTab];
+                const currentUser = Auth.user ? { name: Auth.user.displayName, avatar: Auth.user.displayName[0].toUpperCase(), position: 5, points: 42, hits: 42 } : null;
+                
+                const renderUser = (user, index) => {
+                    const medals = ['🥇', '🥈', '🥉'];
+                    const medal = index < 3 ? medals[index] : `${index + 1}º`;
+                    const bgClass = index < 3 ? 'bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border-yellow-500/30' : 'bg-app-surface border-white/5';
+                    return `
+                        <div class="flex items-center gap-4 p-4 rounded-xl border ${bgClass} hover:bg-white/5 transition-all">
+                            <span class="text-2xl font-black w-12 text-center">${medal}</span>
+                            <div class="w-12 h-12 rounded-full bg-app-primary flex items-center justify-center text-sm font-black text-black">${user.avatar}</div>
+                            <div class="flex-1">
+                                <h3 class="text-sm font-bold text-white">${user.name}</h3>
+                                <p class="text-xs text-slate-400">${user.hits} acertos${activeTab !== 'round' ? ' • ' + user.rounds + ' concursos' : ''}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-black text-app-primary">${user.points}</div>
+                                <div class="text-[10px] text-slate-500 uppercase">pontos</div>
+                            </div>
+                        </div>
+                    `;
+                };
+                
+                return `
+                    <div class="animate-fade-in space-y-6">
+                        <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
+                            <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-trophy text-app-primary mr-2"></i>Ranking de Lotequeiros</h2>
+                            <p class="text-sm text-slate-300 mb-6">Veja quem são os melhores palpiteiros do Brasil!</p>
+                            
+                            ${currentUser ? `
+                                <div class="bg-app-primary/10 border-2 border-app-primary/30 rounded-xl p-4 mb-6">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-16 h-16 rounded-full bg-app-primary flex items-center justify-center text-xl font-black text-black">${currentUser.avatar}</div>
+                                        <div class="flex-1">
+                                            <h3 class="text-lg font-bold text-white">${currentUser.name}</h3>
+                                            <p class="text-xs text-slate-400">Sua posição no ranking</p>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-3xl font-black text-app-primary">${currentUser.position}º</div>
+                                            <div class="text-[10px] text-slate-500 uppercase">Posição</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-3xl font-black text-app-primary">${currentUser.points}</div>
+                                            <div class="text-[10px] text-slate-500 uppercase">Pontos</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 text-center">
+                                    <p class="text-sm text-slate-400 mb-3">Faça login para ver sua posição no ranking!</p>
+                                    <button onclick="Router.openModal('login')" class="bg-app-primary text-black font-bold py-2 px-6 rounded-lg text-sm hover:bg-green-400 transition-all">
+                                        <i class="fas fa-sign-in-alt mr-2"></i>ENTRAR
+                                    </button>
+                                </div>
+                            `}
+                            
+                            <div class="bg-black/20 p-4 rounded-lg border border-white/10 mb-6">
+                                <h3 class="text-sm font-bold text-white mb-2"><i class="fas fa-info-circle text-app-primary mr-2"></i>Como Funciona a Pontuação</h3>
+                                <div class="space-y-1 text-xs text-slate-300">
+                                    <p>• <strong>1 ponto</strong> por cada resultado correto</p>
+                                    <p>• <strong>28 pontos (dobro)</strong> ao acertar todos os 14 jogos</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-app-surface rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                            <div class="bg-black/20 p-4 border-b border-white/5 flex gap-2">
+                                <button onclick="State.rankingTab='round'; Router.render();" class="flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${activeTab === 'round' ? 'bg-app-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+                                    CONCURSO ATUAL
+                                </button>
+                                <button onclick="State.rankingTab='month'; Router.render();" class="flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${activeTab === 'month' ? 'bg-app-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+                                    MÊS
+                                </button>
+                                <button onclick="State.rankingTab='year'; Router.render();" class="flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${activeTab === 'year' ? 'bg-app-primary text-black' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+                                    ANO
+                                </button>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                ${data.map((user, i) => renderUser(user, i)).join('')}
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="Router.navigate('palpites')" class="flex-1 bg-gradient-to-r from-app-primary to-green-500 hover:from-green-500 hover:to-app-primary text-black font-black py-4 rounded-xl shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-2">
+                                <i class="fas fa-pen-to-square"></i>DÊ SEU PALPITE AGORA
+                            </button>
+                        </div>
+                    </div>
+                `;
+            },
+            LoginModal: () => `
+                <div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+                    <div class="w-full max-w-sm bg-app-surface border border-white/10 rounded-2xl p-8 shadow-2xl relative text-center">
+                        <button onclick="Router.closeModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white"><i class="fas fa-times"></i></button>
+                        <div class="bg-app-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-app-primary text-2xl"><i class="fas fa-user-shield"></i></div>
+                        <h2 class="text-xl font-bold text-white mb-2">Área do Lotequeiro</h2>
+                        <p class="text-xs text-slate-400 mb-8">Entre para salvar seus palpites e participar do ranking nacional.</p>
+                        <button onclick="Auth.loginWithGoogle()" class="w-full bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-3 hover:bg-slate-100 transition-all active:scale-95">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-5 h-5"> Entrar com Google
+                        </button>
+                        <div class="mt-6 pt-6 border-t border-white/5">
+                            <p class="text-[10px] text-slate-500">Ao entrar, você concorda com nossos termos de uso.</p>
+                        </div>
+                    </div>
+                </div>
+            `
+        };
+
+        // --- ROUTER ---
+        const State = { currentRoute: 'home', modal: null };
+        const Router = {
+            navigate: (route) => { State.currentRoute = route; Router.renderMenu(); Router.render(); window.scrollTo(0,0); },
+            openModal: (type) => { State.modal = type; Router.render(); },
+            closeModal: () => { State.modal = null; Router.render(); },
+            renderMenu: () => {
+                const routes = [
+                    { id: 'home', icon: 'fa-home', label: 'Início' },
+                    { id: 'ai-xray', icon: 'fa-microchip', label: 'Raio X IA', special: true },
+                    { id: 'ranking', icon: 'fa-medal', label: 'Ranking' },
+                    { id: 'palpites', icon: 'fa-pen-to-square', label: 'Palpites' },
+                    { id: 'market', icon: 'fa-exchange-alt', label: 'Mercado' },
+                    { id: 'prices', icon: 'fa-tag', label: 'Preços' }
+                ];
+                
+                // Adicionar Admin se for o administrador
+                if (Auth.user && Auth.user.email === 'mateusmachado11m@gmail.com') {
+                    routes.push({ id: 'admin', icon: 'fa-shield-alt', label: 'Admin', admin: true });
+                }
+                document.getElementById('horizontal-menu').innerHTML = routes.map(r => {
+                    const isActive = State.currentRoute === r.id;
+                    const cls = r.special ? (isActive ? 'bg-app-ai text-white' : 'text-app-ai bg-app-ai/10 border border-app-ai/20') : (isActive ? 'bg-app-primary/10 text-app-primary border-b-2 border-app-primary' : 'text-slate-400 hover:text-white hover:bg-white/5');
+                    return `<button onclick="Router.navigate('${r.id}')" class="nav-item flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${cls}"><i class="fas ${r.icon}"></i><span>${r.label}</span></button>`;
+                }).join('');
+            },
+            render: () => {
+                const main = document.getElementById('main-content');
+                switch(State.currentRoute) {
+                    case 'home': main.innerHTML = Views.Home(); break;
+                    case 'analysis-previous': main.innerHTML = Views.AnalysisPrevious(); break;
+                    case 'analysis-current': main.innerHTML = Views.AnalysisCurrent(); break;
+                    case 'palpites': main.innerHTML = Views.Palpites(); break;
+                    case 'ai-xray': main.innerHTML = Views.AiXray(); break;
+                    case 'market': main.innerHTML = Views.Market(); break;
+                    case 'prices': main.innerHTML = Views.Prices(); break;
+                    case 'ranking': main.innerHTML = Views.Ranking(); break;
+                    case 'admin': main.innerHTML = Views.Admin(); break;
+                }
+                if(State.modal === 'login') {
+                    const div = document.createElement('div');
+                    div.innerHTML = Views.LoginModal();
+                    main.appendChild(div.firstElementChild);
+                }
+            }
+        };
+
+        // --- ACTIONS ---
+        const Actions = {
+            vote: (gid, type) => { Store.setVote(gid, type); Router.render(); },
+            submitVotes: () => {
+                if(!Auth.user) { Router.openModal('login'); return; }
+                const d = Store.getAppData();
+                if(Object.keys(d.votes).length < 14) { alert("Preencha os 14 jogos!"); return; }
+                d.submitted = true;
+                Store.saveAppData(d);
+                Router.render();
+            },
+            resetVotes: () => { localStorage.removeItem(Store.KEY_DATA); Router.render(); }
+        };
+
+        // ADMIN ACTIONS
+        const AdminActions = {
+            async processar(tipo) {
+                const textarea = document.getElementById(`html-${tipo}`);
+                const htmlContent = textarea.value;
+                
+                if (!htmlContent.trim()) {
+                    alert('Por favor, cole o HTML primeiro!');
+                    return;
+                }
+                
+                try {
+                    const idToken = await firebase.auth().currentUser.getIdToken();
+                    const response = await fetch('https://us-central1-loteca-pro-mateus-1767825041.cloudfunctions.net/processarDadosAdmin', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}`
+                        },
+                        body: JSON.stringify({ htmlContent, tipo })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const feedback = document.getElementById('admin-feedback');
+                        feedback.textContent = `✓ ${tipo === 'programacao' ? 'Programação' : 'Resultados'} atualizado(s) com sucesso!`;
+                        feedback.classList.remove('hidden');
+                        textarea.value = '';
+                        setTimeout(() => feedback.classList.add('hidden'), 5000);
+                    } else {
+                        alert('Erro: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Erro ao processar: ' + error.message);
+                }
+            },
+            
+            async carregarAlertas() {
+                try {
+                    const idToken = await firebase.auth().currentUser.getIdToken();
+                    const response = await fetch('https://us-central1-loteca-pro-mateus-1767825041.cloudfunctions.net/buscarAlertas', {
+                        headers: { 'Authorization': `Bearer ${idToken}` }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success && result.alertas.length > 0) {
+                        const container = document.getElementById('alertas-list');
+                        container.innerHTML = result.alertas.map(a => `
+                            <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                                <p class="text-yellow-400 font-bold text-sm">${a.assunto}</p>
+                                <p class="text-slate-300 text-xs mt-1">${a.mensagem}</p>
+                            </div>
+                        `).join('');
+                    } else {
+                        document.getElementById('alertas-list').innerHTML = '<p class="text-sm text-slate-500">Nenhum alerta novo</p>';
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar alertas:', error);
+                }
+            }
+        };
+
+        // INIT
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const page = params.get('page');
+            if (page) State.currentRoute = page;
+            Auth.init();
+            Router.renderMenu();
+            Router.render();
+            
+            // Carregar alertas se estiver na página admin
+            if (State.currentRoute === 'admin' && Auth.user) {
+                setTimeout(() => AdminActions.carregarAlertas(), 1000);
+            }
+        });
+    </script>
+</body>
+</html>

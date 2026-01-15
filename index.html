@@ -711,6 +711,91 @@
             resetVotes: () => { localStorage.removeItem(Store.KEY_DATA); Router.render(); }
         };
 
+        // ANÁLISE COM IA
+        const AIAnalyzer = {
+            async analisarConcurso(dados) {
+                try {
+                    const prompt = dados.tipo === 'programacao' 
+                        ? this.gerarPromptProgramacao(dados)
+                        : this.gerarPromptResultados(dados);
+                    
+                    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + OPENAI_API_KEY, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: prompt }]
+                            }]
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    const texto = result.candidates[0].content.parts[0].text;
+                    
+                    // Extrair resumo e análise detalhada
+                    const linhas = texto.split('\n').filter(l => l.trim());
+                    const resumo = linhas[0].replace(/^(RESUMO:|Resumo:)/i, '').trim();
+                    const analiseDetalhada = linhas.slice(1).join(' ').replace(/^(ANÁLISE:|Análise:)/i, '').trim();
+                    
+                    return { resumo, analiseDetalhada };
+                    
+                } catch (error) {
+                    console.error('Erro ao gerar análise:', error);
+                    return {
+                        resumo: `Concurso ${dados.concurso} - Dados oficiais da Caixa`,
+                        analiseDetalhada: 'Análise indisponível no momento.'
+                    };
+                }
+            },
+            
+            gerarPromptProgramacao(dados) {
+                const jogosTexto = dados.jogos.map(j => `${j.jogo}. ${j.time1} x ${j.time2} (${j.data})`).join('\n');
+                
+                return `Você é um analista especialista em Loteca/futebol brasileiro. Analise a programação do concurso ${dados.concurso} e gere:
+
+1. RESUMO (1 linha, máximo 120 caracteres): Destaque os principais jogos e clássicos
+2. ANÁLISE DETALHADA (2-3 parágrafos): Analise os confrontos, favoritos, derbies, jogos decisivos
+
+Programação:
+${jogosTexto}
+
+Data: ${dados.dataConcurso || 'N/A'}
+Período de apostas: ${dados.periodoApostas || 'N/A'}
+Realização: ${dados.realizacaoJogos || 'N/A'}
+
+Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes. Seja objetivo e profissional.`;
+            },
+            
+            gerarPromptResultados(dados) {
+                const jogosTexto = dados.jogos.map(j => `${j.jogo}. ${j.time1} ${j.placar1} x ${j.placar2} ${j.time2}`).join('\n');
+                
+                // Calcular estatísticas
+                let vitoriasMandante = 0, empates = 0, vitoriasVisitante = 0;
+                dados.jogos.forEach(j => {
+                    const p1 = parseInt(j.placar1);
+                    const p2 = parseInt(j.placar2);
+                    if (p1 > p2) vitoriasMandante++;
+                    else if (p1 === p2) empates++;
+                    else vitoriasVisitante++;
+                });
+                
+                return `Você é um analista especialista em Loteca/futebol brasileiro. Analise os resultados do concurso ${dados.concurso} e gere:
+
+1. RESUMO (1 linha, máximo 120 caracteres): Destaque as zebras, placares surpreendentes ou tendências
+2. ANÁLISE DETALHADA (2-3 parágrafos): Analise os resultados, zebras, goleadas, empates surpreendentes
+
+Resultados:
+${jogosTexto}
+
+Estatísticas:
+- Vitórias do mandante: ${vitoriasMandante}
+- Empates: ${empates}
+- Vitórias do visitante: ${vitoriasVisitante}
+
+Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes. Seja objetivo e profissional.`;
+            }
+        };
+        
         // CARREGAR DADOS DO FIRESTORE
         const DataLoader = {
             async carregarConcursoAtual() {
@@ -773,11 +858,21 @@
                     // Por enquanto mantém o padrão, será atualizado quando carregar resultados
                     Data.analysis.current.acc = '1.5M';
                     
-                    // Usar data do concurso se disponível
-                    if (concurso.dataConcurso) {
-                        Data.analysis.current.summary = `Concurso ${concurso.concurso} (${concurso.dataConcurso})`;
+                    // Carregar análise gerada pela IA
+                    if (concurso.analise) {
+                        Data.analysis.current.summary = concurso.analise.resumo;
+                        Data.analysis.current.fullAnalysis = concurso.analise.detalhada;
                     } else {
-                        Data.analysis.current.summary = `Concurso ${concurso.concurso} - Dados oficiais da Caixa`;
+                        // Fallback se não tiver análise
+                        if (concurso.dataConcurso) {
+                            Data.analysis.current.summary = `Concurso ${concurso.concurso} (${concurso.dataConcurso})`;
+                        } else {
+                            Data.analysis.current.summary = `Concurso ${concurso.concurso} - Dados oficiais da Caixa`;
+                        }
+                        
+                        if (concurso.realizacaoJogos) {
+                            Data.analysis.current.fullAnalysis = `Concurso ${concurso.concurso} com jogos realizados entre ${concurso.realizacaoJogos}. Período de apostas: ${concurso.periodoApostas || 'Consulte o site da Caixa'}. Confira os confrontos e faça seus palpites!`;
+                        }
                     }
                     
                     // Usar período de apostas se disponível
@@ -785,11 +880,6 @@
                         const partes = concurso.periodoApostas.split('até');
                         Data.analysis.current.openDate = partes[0].trim();
                         Data.analysis.current.closeDate = partes[1] ? 'até ' + partes[1].trim() : concurso.periodoApostas;
-                    }
-                    
-                    // Usar realização dos jogos na análise completa
-                    if (concurso.realizacaoJogos) {
-                        Data.analysis.current.fullAnalysis = `Concurso ${concurso.concurso} com jogos realizados entre ${concurso.realizacaoJogos}. Período de apostas: ${concurso.periodoApostas || 'Consulte o site da Caixa'}. Confira os confrontos e faça seus palpites!`;
                     }
                     
                     console.log(`Concurso ${concurso.concurso} carregado com sucesso!`);
@@ -836,12 +926,18 @@
                     
                     // Atualizar análise do concurso anterior
                     Data.analysis.previous.id = parseInt(concurso.concurso);
-                    Data.analysis.previous.summary = `Concurso ${concurso.concurso} - Resultados oficiais`;
                     
-                    // Calcular estatísticas básicas
-                    if (concurso.jogos && concurso.jogos.length > 0) {
-                        const totalJogos = concurso.jogos.length;
-                        Data.analysis.previous.fullAnalysis = `Concurso ${concurso.concurso} finalizado com ${totalJogos} jogos. Confira os resultados e placares abaixo.`;
+                    // Carregar análise gerada pela IA
+                    if (concurso.analise) {
+                        Data.analysis.previous.summary = concurso.analise.resumo;
+                        Data.analysis.previous.fullAnalysis = concurso.analise.detalhada;
+                    } else {
+                        // Fallback se não tiver análise
+                        Data.analysis.previous.summary = `Concurso ${concurso.concurso} - Resultados oficiais`;
+                        if (concurso.jogos && concurso.jogos.length > 0) {
+                            const totalJogos = concurso.jogos.length;
+                            Data.analysis.previous.fullAnalysis = `Concurso ${concurso.concurso} finalizado com ${totalJogos} jogos. Confira os resultados e placares abaixo.`;
+                        }
                     }
                     
                     // Atualizar estimativa de prêmio do próximo concurso (vem dos resultados)
@@ -1041,6 +1137,14 @@
                     const dados = window.dadosPreview;
                     const db = firebase.firestore();
                     
+                    // Mostrar feedback de processamento
+                    const feedback = document.getElementById('admin-feedback');
+                    feedback.textContent = '⏳ Gerando análise com IA...';
+                    feedback.className = 'mt-4 p-4 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-sm';
+                    
+                    // Gerar análise com IA
+                    const analise = await AIAnalyzer.analisarConcurso(dados);
+                    
                     // Copiar de concursos para concursos_publicados
                     const docData = {
                         concurso: dados.concurso,
@@ -1048,7 +1152,12 @@
                         jogos: dados.jogos,
                         publicado: firebase.firestore.FieldValue.serverTimestamp(),
                         publicadoPor: firebase.auth().currentUser.email,
-                        status: 'publicado'
+                        status: 'publicado',
+                        analise: {
+                            resumo: analise.resumo,
+                            detalhada: analise.analiseDetalhada,
+                            geradaEm: new Date().toISOString()
+                        }
                     };
                     
                     // Adicionar campos específicos de programação

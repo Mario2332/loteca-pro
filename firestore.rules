@@ -1,22 +1,67 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Dados da Loteca - leitura pública, escrita apenas por Cloud Functions
+    
+    // Função auxiliar para verificar se é o admin
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'mateusmachado11m@gmail.com';
+    }
+    
+    // Função auxiliar para verificar se está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Concursos (programação e resultados)
+    match /concursos/{concursoId} {
+      // Todos podem ler
+      allow read: if true;
+      // Apenas admin pode escrever
+      allow write: if isAdmin();
+    }
+    
+    // Palpites dos usuários
+    match /palpites/{palpiteId} {
+      // Usuário pode ler seus próprios palpites
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      // Usuário pode criar/atualizar seus próprios palpites
+      allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      // Apenas o dono pode deletar
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    // Ranking (gerado automaticamente)
+    match /ranking/{userId} {
+      // Todos podem ler
+      allow read: if true;
+      // Apenas o sistema pode escrever (via admin)
+      allow write: if isAdmin();
+    }
+    
+    // Alertas do sistema de monitoramento
+    match /alertas/{alertaId} {
+      // Apenas admin pode ler e escrever
+      allow read, write: if isAdmin();
+    }
+    
+    // Configurações do sistema
+    match /config/{configId} {
+      // Todos podem ler
+      allow read: if true;
+      // Apenas admin pode escrever
+      allow write: if isAdmin();
+    }
+    
+    // Dados da Loteca (compatibilidade)
     match /loteca/{document=**} {
       allow read: if true;
-      allow write: if false; // Apenas Cloud Functions podem escrever
+      allow write: if isAdmin();
     }
     
-    // Palpites dos usuários - leitura pública, escrita apenas para usuários autenticados
-    match /palpites/{userId}/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Ranking - leitura pública, escrita apenas por Cloud Functions
-    match /ranking/{document=**} {
-      allow read: if true;
-      allow write: if false;
+    // Bloquear tudo que não foi explicitamente permitido
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

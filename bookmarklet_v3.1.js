@@ -1,0 +1,160 @@
+(function(){
+    const url = window.location.href;
+    const text = document.body.textContent;
+    let data = {};
+    
+    if (url.includes('Programacao-Loteca')) {
+        // PROGRAMAÇÃO
+        const concursoMatch = text.match(/Concurso\s+(\d+)/);
+        const concurso = concursoMatch ? concursoMatch[1] : '';
+        
+        const dataConcursoMatch = text.match(/Concurso\s+\d+\s+\(([^)]+)\)/);
+        const dataConcurso = dataConcursoMatch ? dataConcursoMatch[1] : '';
+        
+        const periodoMatch = text.match(/Período de apostas:\s*(.+?)(?=Realização|$)/s);
+        const periodoApostas = periodoMatch ? periodoMatch[1].trim().replace(/\s+/g, ' ') : '';
+        
+        const realizacaoMatch = text.match(/Realização dos jogos de futebol:\s*(.+?)(?=\n|Jogo|$)/);
+        const realizacaoJogos = realizacaoMatch ? realizacaoMatch[1].trim() : '';
+        
+        const table = document.querySelector('table');
+        const jogos = [];
+        
+        if (table) {
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach((row, idx) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 7) {
+                    jogos.push({
+                        jogo: idx + 1,
+                        time1: cells[2].textContent.trim(),
+                        time2: cells[4].textContent.trim(),
+                        data: cells[6].textContent.trim()
+                    });
+                }
+            });
+        }
+        
+        data = {
+            tipo: 'programacao',
+            concurso: concurso,
+            dataConcurso: dataConcurso,
+            periodoApostas: periodoApostas,
+            realizacaoJogos: realizacaoJogos,
+            jogos: jogos
+        };
+        
+    } else if (url.includes('Loteca.aspx')) {
+        // RESULTADOS
+        const concursoMatch = text.match(/Concurso\s+(\d+)/);
+        const concurso = concursoMatch ? concursoMatch[1] : '';
+        
+        const premioMatch = text.match(/Estimativa de prêmio do próximo concurso[^R]*R\$\s*([\d.,]+)/);
+        const estimativaPremio = premioMatch ? premioMatch[1] : '';
+        
+        // Ganhadores 14 acertos
+        let ganhadores14 = 0;
+        const ganhadores14Match = text.match(/1º \(14 acertos\)[^\n]*\n([^\n]+)/);
+        if (ganhadores14Match) {
+            const texto = ganhadores14Match[1];
+            if (texto.includes('Não houve')) {
+                ganhadores14 = 0;
+            } else {
+                const numMatch = texto.match(/(\d+)\s+aposta/);
+                if (numMatch) {
+                    ganhadores14 = parseInt(numMatch[1]);
+                }
+            }
+        }
+        
+        // Ganhadores 13 acertos
+        let ganhadores13 = { quantidade: 0, valorPorAposta: '0,00' };
+        const ganhadores13Match = text.match(/2º \(13 acertos\)[^\n]*\n([^\n]+)/);
+        if (ganhadores13Match) {
+            const texto = ganhadores13Match[1];
+            const numMatch = texto.match(/(\d+)\s+aposta/);
+            const valorMatch = texto.match(/R\$\s*([\d.,]+)/);
+            if (numMatch) {
+                ganhadores13.quantidade = parseInt(numMatch[1]);
+            }
+            if (valorMatch) {
+                ganhadores13.valorPorAposta = valorMatch[1];
+            }
+        }
+        
+        const acumulou = text.includes('Acumulou!');
+        
+        const table = document.querySelector('table');
+        const jogos = [];
+        
+        if (table) {
+            const allRows = table.querySelectorAll('tr');
+            // Pular primeira linha (cabeçalho)
+            for (let i = 1; i < allRows.length; i++) {
+                const cells = allRows[i].querySelectorAll('td');
+                if (cells.length >= 7) {
+                    jogos.push({
+                        jogo: i,
+                        time1: cells[2].textContent.trim(),
+                        placar1: parseInt(cells[1].textContent.trim()) || 0,
+                        time2: cells[4].textContent.trim(),
+                        placar2: parseInt(cells[5].textContent.trim()) || 0,
+                        data: cells[6].textContent.trim()
+                    });
+                }
+            }
+        }
+        
+        data = {
+            tipo: 'resultados',
+            concurso: concurso,
+            estimativaPremio: estimativaPremio,
+            ganhadores14: ganhadores14,
+            ganhadores13: ganhadores13,
+            acumulou: acumulou,
+            jogos: jogos
+        };
+    }
+    
+    // Copiar para clipboard
+    const jsonStr = JSON.stringify(data, null, 2);
+    const textarea = document.createElement('textarea');
+    textarea.value = jsonStr;
+    textarea.style.position = 'fixed';
+    textarea.style.top = '50%';
+    textarea.style.left = '50%';
+    textarea.style.transform = 'translate(-50%, -50%)';
+    textarea.style.width = '80%';
+    textarea.style.height = '60%';
+    textarea.style.padding = '20px';
+    textarea.style.fontSize = '14px';
+    textarea.style.fontFamily = 'monospace';
+    textarea.style.border = '3px solid #667eea';
+    textarea.style.borderRadius = '10px';
+    textarea.style.zIndex = '999999';
+    textarea.style.backgroundColor = 'white';
+    textarea.style.boxShadow = '0 20px 60px rgba(0,0,0,0.5)';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    overlay.style.zIndex = '999998';
+    document.body.appendChild(overlay);
+    
+    const msg = document.createElement('div');
+    msg.innerHTML = '<div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#48bb78;color:white;padding:20px 40px;border-radius:50px;font-size:18px;font-weight:bold;z-index:1000000;box-shadow:0 10px 30px rgba(0,0,0,0.3);">✅ Dados copiados! Cole no Painel Admin</div>';
+    document.body.appendChild(msg);
+    
+    setTimeout(() => {
+        document.body.removeChild(textarea);
+        document.body.removeChild(overlay);
+        document.body.removeChild(msg);
+    }, 3000);
+})();

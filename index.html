@@ -998,6 +998,19 @@
                         status: 'publicado'
                     };
                     
+                    // Adicionar campos específicos de programação
+                    if (dados.tipo === 'programacao') {
+                        if (dados.dataConcurso) docData.dataConcurso = dados.dataConcurso;
+                        if (dados.periodoApostas) docData.periodoApostas = dados.periodoApostas;
+                        if (dados.realizacaoJogos) docData.realizacaoJogos = dados.realizacaoJogos;
+                    }
+                    
+                    // Adicionar campos específicos de resultados
+                    if (dados.tipo === 'resultado') {
+                        if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
+                        if (dados.dataLimiteVendas) docData.dataLimiteVendas = dados.dataLimiteVendas;
+                    }
+                    
                     await db.collection('concursos_publicados').doc(dados.concurso).set(docData);
                     
                     // Atualizar config/atual

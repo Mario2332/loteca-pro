@@ -709,8 +709,24 @@
                     const dados = JSON.parse(jsonContent);
                     
                     // Validar estrutura
-                    if (!dados.tipo || !dados.concurso || !dados.jogos) {
+                    if (!dados.tipo || !dados.jogos || !Array.isArray(dados.jogos)) {
                         throw new Error('Formato inválido! Use o bookmarklet para copiar os dados.');
+                    }
+                    
+                    // Validar se tem jogos
+                    if (dados.jogos.length === 0) {
+                        throw new Error('Nenhum jogo encontrado! Verifique se está na página correta da Caixa.');
+                    }
+                    
+                    // Validar se tem concurso
+                    if (!dados.concurso) {
+                        throw new Error('Número do concurso não encontrado! Verifique se está na página correta da Caixa.');
+                    }
+                    
+                    // Validar se os jogos têm os campos necessários
+                    const primeiroJogo = dados.jogos[0];
+                    if (!primeiroJogo.time1 || !primeiroJogo.time2) {
+                        throw new Error('Dados incompletos! Os times não foram extraídos corretamente. Tente novamente.');
                     }
                     
                     // Verificar autenticação

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const {onRequest} = require('firebase-functions/v2/https');
 const {onSchedule} = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
@@ -211,4 +212,120 @@ exports.buscarAlertas = onRequest({cors: true}, async (req, res) => {
         console.error('Erro:', error);
         res.status(500).json({ success: false, error: error.message });
     }
+});
+
+/**
+ * Cloud Function para gerar análise com IA (Gemini)
+ * Protege a chave da API no servidor
+ */
+exports.gerarAnaliseIA = onRequest({cors: true}, async (req, res) => {
+  try {
+    // Verificar autenticação
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, error: 'Não autorizado' });
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+    // Verificar se é admin
+    if (decodedToken.email !== ADMIN_EMAIL) {
+      return res.status(403).json({ success: false, error: 'Apenas admin pode gerar análises' });
+    }
+
+    const { tipo, concurso, jogos } = req.body;
+
+    if (!tipo || !concurso || !jogos) {
+      return res.status(400).json({ success: false, error: 'Dados incompletos' });
+    }
+
+    // Pegar chave do Gemini das variáveis de ambiente
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY) {
+      throw new Error('Chave do Gemini não configurada');
+    }
+
+    // Gerar prompt baseado no tipo
+    let prompt = '';
+    if (tipo === 'programacao') {
+      prompt = `Você é um analista especializado em futebol brasileiro e Loteca.
+
+Analise a programação do Concurso ${concurso} da Loteca com os seguintes jogos:
+
+${jogos.map((j, idx) => `${idx + 1}. ${j.time1} x ${j.time2} (${j.data})`).join('\n')}
+
+IMPORTANTE:
+- Time1 é o MANDANTE (joga em casa)
+- Time2 é o VISITANTE (joga fora)
+
+Gere uma análise em formato JSON com:
+{
+  "resumo": "Texto de até 3 linhas resumindo os destaques do concurso",
+  "detalhada": "Análise completa do concurso (3-4 parágrafos)"
+}
+
+Foque em: clássicos, derbies, confrontos importantes, times em boa fase.`;
+    } else {
+      prompt = `Você é um analista especializado em futebol brasileiro e Loteca.
+
+Analise os resultados do Concurso ${concurso} da Loteca:
+
+${jogos.map((j, idx) => `${idx + 1}. ${j.time1} ${j.placar1} x ${j.placar2} ${j.time2}`).join('\n')}
+
+IMPORTANTE:
+- Time1 é o MANDANTE (jogou em casa)
+- Time2 é o VISITANTE (jogou fora)
+- Placar1 é do mandante, Placar2 é do visitante
+
+Gere uma análise em formato JSON com:
+{
+  "resumo": "Texto de até 3 linhas resumindo os resultados",
+  "detalhada": "Análise completa dos resultados (3-4 parágrafos)"
+}
+
+Foque em: zebras, goleadas, vitórias importantes, estatísticas.`;
+    }
+
+    // Chamar API do Gemini
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [{ text: prompt }]
+        }]
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000
+      }
+    );
+
+    const textoIA = response.data.candidates[0].content.parts[0].text;
+
+    // Extrair JSON da resposta
+    const jsonMatch = textoIA.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('IA não retornou JSON válido');
+    }
+
+    const analise = JSON.parse(jsonMatch[0]);
+
+    res.json({
+      success: true,
+      analise: {
+        resumo: analise.resumo,
+        detalhada: analise.detalhada,
+        geradaEm: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao gerar análise:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: `Erro ao gerar análise: ${error.message}` 
+    });
+  }
 });

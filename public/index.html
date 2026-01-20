@@ -154,10 +154,12 @@
                 },
                 previous: { 
                     id: 1104, 
-                    summary: "Concurso de zebras! Apenas 2 favoritos venceram. 6 empates surpreenderam os apostadores. O concurso acumulou após ninguém cravar os 14 resultados.",
+                    summary: "Concurso de zebras! Apenas 2 favoritos venceram. 6 empates surpreenderam os apostadores. O concurso acumulou após ninguém cratar os 14 resultados.",
                     winners: 0,
+                    winners13: 0,
                     accumulated: true,
-                    fullAnalysis: "O concurso 1104 entrou para a história como uma das concursos mais imprevisíveis do ano. Com 6 empates (incluindo o surpreendente 2x2 entre Flamengo e Botafogo no Maracanã), os apostadores viram seus palpites ruírem. Apenas Santos e Palmeiras confirmaram o favoritismo, vencendo fora de casa. Na Europa, o Lyon surpreendeu ao vencer o PSG por 3x1, resultado que ninguém esperava. O resultado? Zero acertadores dos 14 jogos e prêmio acumulado para o próximo concurso. Análise detalhada de cada partida disponível abaixo."
+                    fullAnalysis: "O concurso 1104 entrou para a história como uma das concursos mais imprevisíveis do ano. Com 6 empates (incluindo o surpreendente 2x2 entre Flamengo e Botafogo no Maracanã), os apostadores viram seus palpites ruírem. Apenas Santos e Palmeiras confirmaram o favoritismo, vencendo fora de casa. Na Europa, o Lyon surpreendeu ao vencer o PSG por 3x1, resultado que ninguém esperava. O resultado? Zero acertadores dos 14 jogos e prêmio acumulado para o próximo concurso. Análise detalhada de cada partida disponível abaixo.",
+                    jogos: []
                 }
             },
             news: [
@@ -338,36 +340,72 @@
                     </div>
                 </div>
             `,
-            AnalysisPrevious: () => `
+            AnalysisPrevious: () => {
+                const prev = Data.analysis.previous;
+                const jogos = prev.jogos && prev.jogos.length > 0 ? prev.jogos : [];
+                
+                return `
                 <div class="animate-fade-in space-y-6">
                     <button onclick="Router.navigate('home')" class="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4">
                         <i class="fas fa-arrow-left"></i> Voltar
                     </button>
+                    
+                    <!-- ANÁLISE GERAL -->
                     <div class="bg-app-surface p-6 rounded-2xl border border-white/5 shadow-2xl">
-                        <h2 class="text-2xl font-black text-white mb-2">Análise Completa - Concurso #${Data.analysis.previous.id}</h2>
+                        <h2 class="text-2xl font-black text-white mb-2">Análise Completa - Concurso #${prev.id}</h2>
                         <div class="flex gap-3 mb-6">
-                            <span class="text-xs font-bold ${Data.analysis.previous.accumulated ? 'text-app-primary' : 'text-slate-400'} bg-black/30 px-3 py-1 rounded-full">${Data.analysis.previous.accumulated ? 'ACUMULOU' : Data.analysis.previous.winners + ' Ganhadores'}</span>
+                            ${prev.accumulated ? 
+                                '<span class="text-xs font-bold text-app-primary bg-black/30 px-3 py-1 rounded-full">ACUMULOU!</span>' :
+                                `<span class="text-xs font-bold text-slate-400 bg-black/30 px-3 py-1 rounded-full">${prev.winners} Ganhador${prev.winners !== 1 ? 'es' : ''} (14 acertos)</span>`
+                            }
+                            ${prev.winners13 > 0 ? 
+                                `<span class="text-xs font-bold text-slate-500 bg-black/30 px-3 py-1 rounded-full">${prev.winners13} com 13 acertos</span>` : ''
+                            }
                         </div>
                         <div class="prose prose-invert max-w-none">
-                            <p class="text-sm text-slate-300 leading-relaxed">${Data.analysis.previous.fullAnalysis}</p>
+                            <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">${prev.fullAnalysis}</p>
                         </div>
                     </div>
+                    
+                    <!-- RESULTADOS DOS JOGOS -->
+                    ${jogos.length > 0 ? `
                     <div class="bg-app-surface p-6 rounded-2xl border border-white/5">
-                        <h3 class="text-lg font-bold text-white mb-4">Resultado de Cada Partida</h3>
+                        <h3 class="text-lg font-bold text-white mb-4"><i class="fas fa-futbol mr-2"></i>Resultado de Cada Partida</h3>
                         <div class="space-y-3">
-                            ${Data.games.slice(0, 5).map(g => `
-                                <div class="bg-black/20 p-4 rounded-lg">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="text-sm font-bold text-white">${g.home.name} 2 x 2 ${g.away.name}</span>
-                                        <span class="text-xs text-slate-500">${g.tour}</span>
+                            ${jogos.map((jogo, idx) => {
+                                const placar = jogo.placar1 !== undefined && jogo.placar2 !== undefined ? 
+                                    `${jogo.placar1} x ${jogo.placar2}` : 'vs';
+                                const resultado = jogo.placar1 > jogo.placar2 ? 'Col. 1' : 
+                                                 jogo.placar1 < jogo.placar2 ? 'Col. 2' : 'Empate';
+                                const corResultado = jogo.placar1 > jogo.placar2 ? 'text-green-400' : 
+                                                    jogo.placar1 < jogo.placar2 ? 'text-red-400' : 'text-yellow-400';
+                                
+                                return `
+                                <div class="bg-black/20 p-4 rounded-lg hover:bg-black/30 transition-colors">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex-1">
+                                            <div class="text-xs text-slate-500 mb-1">JOGO ${idx + 1}</div>
+                                            <div class="text-sm font-bold text-white">
+                                                ${jogo.time1} <span class="text-app-primary mx-2">${placar}</span> ${jogo.time2}
+                                            </div>
+                                        </div>
+                                        <span class="text-xs font-bold ${corResultado} bg-black/30 px-2 py-1 rounded">${resultado}</span>
                                     </div>
-                                    <p class="text-xs text-slate-400">${g.analysis}</p>
+                                    ${jogo.data ? `<div class="text-xs text-slate-500 mt-1"><i class="far fa-calendar mr-1"></i>${jogo.data}</div>` : ''}
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
+                    ` : `
+                    <div class="bg-app-surface p-6 rounded-2xl border border-white/5 text-center">
+                        <i class="fas fa-info-circle text-slate-600 text-3xl mb-3"></i>
+                        <p class="text-sm text-slate-400">Resultados detalhados não disponíveis para este concurso.</p>
+                    </div>
+                    `}
                 </div>
-            `,
+                `;
+            },
             AnalysisCurrent: () => `
                 <div class="animate-fade-in space-y-6">
                     <button onclick="Router.navigate('home')" class="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4">
@@ -968,9 +1006,19 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                         Data.analysis.previous.winners = concurso.ganhadores14;
                     }
                     
+                    // Atualizar ganhadores de 13 acertos
+                    if (concurso.ganhadores13 !== undefined) {
+                        Data.analysis.previous.winners13 = concurso.ganhadores13;
+                    }
+                    
                     // Atualizar acumulação
                     if (concurso.acumulou !== undefined) {
                         Data.analysis.previous.accumulated = concurso.acumulou;
+                    }
+                    
+                    // Salvar jogos do concurso anterior
+                    if (concurso.jogos && concurso.jogos.length > 0) {
+                        Data.analysis.previous.jogos = concurso.jogos;
                     }
                     
                     // Carregar análise gerada pela IA

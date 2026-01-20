@@ -1,8 +1,11 @@
-require('dotenv').config();
 const {onRequest} = require('firebase-functions/v2/https');
 const {onSchedule} = require('firebase-functions/v2/scheduler');
+const {defineSecret} = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const axios = require('axios');
+
+// Definir secret para a chave do Gemini
+const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -218,7 +221,7 @@ exports.buscarAlertas = onRequest({cors: true}, async (req, res) => {
  * Cloud Function para gerar análise com IA (Gemini)
  * Protege a chave da API no servidor
  */
-exports.gerarAnaliseIA = onRequest({cors: true}, async (req, res) => {
+exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey]}, async (req, res) => {
   try {
     // Verificar autenticação
     const authHeader = req.headers.authorization;
@@ -240,8 +243,8 @@ exports.gerarAnaliseIA = onRequest({cors: true}, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Dados incompletos' });
     }
 
-    // Pegar chave do Gemini das variáveis de ambiente
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    // Pegar chave do Gemini do secret
+    const GEMINI_API_KEY = geminiApiKey.value();
 
     if (!GEMINI_API_KEY) {
       throw new Error('Chave do Gemini não configurada');

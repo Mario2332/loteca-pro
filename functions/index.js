@@ -239,8 +239,19 @@ exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey]}, async 
 
     const { tipo, concurso, jogos } = req.body;
 
-    if (!tipo || !concurso || !jogos) {
-      return res.status(400).json({ success: false, error: 'Dados incompletos' });
+    // Log detalhado para debug
+    console.log('Dados recebidos:', { tipo, concurso, jogosLength: jogos?.length });
+
+    if (!tipo) {
+      return res.status(400).json({ success: false, error: 'Campo "tipo" é obrigatório' });
+    }
+    
+    if (!concurso) {
+      return res.status(400).json({ success: false, error: 'Campo "concurso" é obrigatório' });
+    }
+    
+    if (!jogos || !Array.isArray(jogos) || jogos.length === 0) {
+      return res.status(400).json({ success: false, error: 'Campo "jogos" deve ser um array com pelo menos 1 jogo' });
     }
 
     // Pegar chave do Gemini do secret
@@ -326,9 +337,14 @@ Foque em: zebras, goleadas, vitórias importantes, estatísticas.`;
 
   } catch (error) {
     console.error('Erro ao gerar análise:', error);
-    res.status(500).json({ 
+    
+    // Retornar status apropriado baseado no tipo de erro
+    const statusCode = error.message.includes('obrigatório') || 
+                       error.message.includes('inválido') ? 400 : 500;
+    
+    res.status(statusCode).json({ 
       success: false, 
-      error: `Erro ao gerar análise: ${error.message}` 
+      error: error.message || 'Erro ao gerar análise'
     });
   }
 });

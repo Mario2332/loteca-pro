@@ -1,6 +1,7 @@
 {
   "hosting": {
-    "public": ".",
+    "site": "loteca-pro-mateus-1767825041",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",

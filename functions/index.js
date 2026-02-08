@@ -21,21 +21,17 @@ exports.monitorarLoteca = onSchedule('every 1 hours', async (event) => {
     try {
         console.log('Iniciando monitoramento da Loteca...');
         
-        // Buscar o hash atual da página
         const url = 'https://loterias.caixa.gov.br/Paginas/Loteca.aspx';
         const response = await axios.get(url, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
             timeout: 10000
         });
         
-        // Calcular hash simples do conteúdo
         const contentHash = Buffer.from(response.data).toString('base64').substring(0, 50);
         
-        // Buscar último hash salvo
         const monitorDoc = await db.collection('sistema').doc('monitor').get();
         const lastHash = monitorDoc.exists ? monitorDoc.data().lastHash : null;
         
-        // Se mudou, enviar alerta
         if (lastHash && lastHash !== contentHash) {
             await enviarAlerta('NOVA ATUALIZAÇÃO DETECTADA NA LOTECA!', 
                 `O site da Caixa foi atualizado. Acesse o painel admin para atualizar os dados:\n\n` +
@@ -43,7 +39,6 @@ exports.monitorarLoteca = onSchedule('every 1 hours', async (event) => {
             );
         }
         
-        // Salvar novo hash
         await db.collection('sistema').doc('monitor').set({
             lastHash: contentHash,
             lastCheck: admin.firestore.FieldValue.serverTimestamp()
@@ -62,7 +57,6 @@ exports.monitorarLoteca = onSchedule('every 1 hours', async (event) => {
  */
 exports.processarDadosAdmin = onRequest({cors: true}, async (req, res) => {
     try {
-        // Verificar autenticação
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ success: false, error: 'Não autorizado' });
@@ -71,28 +65,25 @@ exports.processarDadosAdmin = onRequest({cors: true}, async (req, res) => {
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         
-        // Verificar se é o admin
         if (decodedToken.email !== ADMIN_EMAIL) {
             return res.status(403).json({ success: false, error: 'Acesso negado' });
         }
         
-        const { htmlContent, tipo } = req.body; // tipo: 'programacao' ou 'resultados'
+        const { htmlContent, tipo } = req.body;
         
         if (!htmlContent || !tipo) {
             return res.status(400).json({ success: false, error: 'Dados incompletos' });
         }
         
-        // Processar HTML e extrair dados
         const cheerio = require('cheerio');
         const $ = cheerio.load(htmlContent);
         
         let dados = {};
         
         if (tipo === 'programacao') {
-            // Extrair programação
             const jogos = [];
             $('table tbody tr').each((i, elem) => {
-                if (i >= 14) return; // Apenas 14 jogos
+                if (i >= 14) return;
                 const cols = $(elem).find('td');
                 if (cols.length >= 3) {
                     jogos.push({
@@ -116,7 +107,6 @@ exports.processarDadosAdmin = onRequest({cors: true}, async (req, res) => {
             await db.collection('loteca').doc('programacao_atual').set(dados);
             
         } else if (tipo === 'resultados') {
-            // Extrair resultados
             const jogos = [];
             $('table tbody tr').each((i, elem) => {
                 if (i >= 14) return;
@@ -127,7 +117,7 @@ exports.processarDadosAdmin = onRequest({cors: true}, async (req, res) => {
                         timeCasa: $(cols[0]).text().trim(),
                         placar: $(cols[1]).text().trim(),
                         timeFora: $(cols[2]).text().trim(),
-                        resultado: $(cols[3]).text().trim() // 1, X ou 2
+                        resultado: $(cols[3]).text().trim()
                     });
                 }
             });
@@ -157,12 +147,10 @@ exports.processarDadosAdmin = onRequest({cors: true}, async (req, res) => {
 });
 
 /**
- * Função auxiliar para enviar alertas por e-mail
- * Nota: Requer configuração do SendGrid ou similar
+ * Função auxiliar para enviar alertas
  */
 async function enviarAlerta(assunto, mensagem) {
     try {
-        // Salvar alerta no Firestore para o admin ver no painel
         await db.collection('alertas').add({
             para: ADMIN_EMAIL,
             assunto,
@@ -170,12 +158,7 @@ async function enviarAlerta(assunto, mensagem) {
             lido: false,
             dataEnvio: admin.firestore.FieldValue.serverTimestamp()
         });
-        
         console.log(`Alerta salvo: ${assunto}`);
-        
-        // TODO: Integrar com SendGrid ou serviço de e-mail
-        // Por enquanto, apenas salva no Firestore
-        
     } catch (error) {
         console.error('Erro ao enviar alerta:', error);
     }
@@ -219,10 +202,13 @@ exports.buscarAlertas = onRequest({cors: true}, async (req, res) => {
 
 /**
  * Cloud Function para gerar análise com IA (Gemini)
- * Protege a chave da API no servidor
+ * Usa API v1 com modelo gemini-2.0-flash
+ * Gera: resumo curto, análise detalhada, e análise individual por jogo
  */
 exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey]}, async (req, res) => {
   try {
+    console.log('=== INÍCIO gerarAnaliseIA ===');
+    
     // Verificar autenticação
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -230,121 +216,234 @@ exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey]}, async 
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+      console.log('Token verificado para:', decodedToken.email);
+    } catch (authError) {
+      console.error('Erro ao verificar token:', authError.message);
+      return res.status(401).json({ success: false, error: 'Token inválido' });
+    }
 
-    // Verificar se é admin
     if (decodedToken.email !== ADMIN_EMAIL) {
       return res.status(403).json({ success: false, error: 'Apenas admin pode gerar análises' });
     }
 
     const { tipo, concurso, jogos } = req.body;
 
-    // Log detalhado para debug
-    console.log('Dados recebidos:', { tipo, concurso, jogosLength: jogos?.length });
+    console.log('Dados recebidos:', JSON.stringify({ tipo, concurso, jogosCount: jogos?.length }));
 
-    if (!tipo) {
-      return res.status(400).json({ success: false, error: 'Campo "tipo" é obrigatório' });
-    }
-    
-    if (!concurso) {
-      return res.status(400).json({ success: false, error: 'Campo "concurso" é obrigatório' });
-    }
-    
+    if (!tipo) return res.status(400).json({ success: false, error: 'Campo "tipo" é obrigatório' });
+    if (!concurso) return res.status(400).json({ success: false, error: 'Campo "concurso" é obrigatório' });
     if (!jogos || !Array.isArray(jogos) || jogos.length === 0) {
       return res.status(400).json({ success: false, error: 'Campo "jogos" deve ser um array com pelo menos 1 jogo' });
     }
 
-    // Pegar chave do Gemini do secret
     const GEMINI_API_KEY = geminiApiKey.value();
+    console.log('Chave Gemini obtida:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
 
     if (!GEMINI_API_KEY) {
-      throw new Error('Chave do Gemini não configurada');
+      return res.status(500).json({ success: false, error: 'Chave do Gemini não configurada' });
     }
 
     // Gerar prompt baseado no tipo
     let prompt = '';
+    
     if (tipo === 'programacao') {
-      prompt = `Você é um analista especializado em futebol brasileiro e Loteca.
+      const jogosFormatados = jogos.map((j, idx) => {
+        const time1 = j.time1 || j.timeCasa || 'Time 1';
+        const time2 = j.time2 || j.timeFora || 'Time 2';
+        const data = j.data || '';
+        return `Jogo ${idx + 1}: ${time1} (mandante) x ${time2} (visitante) - ${data}`;
+      }).join('\n');
+      
+      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos estaduais, Série A, B, C e D do Brasileirão, Copa do Brasil e competições internacionais.
 
-Analise a programação do Concurso ${concurso} da Loteca com os seguintes jogos:
+Analise a PROGRAMAÇÃO do Concurso ${concurso} da Loteca com os seguintes jogos:
 
-${jogos.map((j, idx) => `${idx + 1}. ${j.time1} x ${j.time2} (${j.data})`).join('\n')}
+${jogosFormatados}
 
-IMPORTANTE:
-- Time1 é o MANDANTE (joga em casa)
-- Time2 é o VISITANTE (joga fora)
+Gere uma análise completa no seguinte formato JSON. Responda APENAS com o JSON puro, sem markdown, sem crases, sem texto antes ou depois:
 
-Gere uma análise em formato JSON com:
 {
-  "resumo": "Texto de até 3 linhas resumindo os destaques do concurso",
-  "detalhada": "Análise completa do concurso (3-4 parágrafos)"
+  "resumo": "Texto de até 3 linhas (máximo 250 caracteres) destacando os principais jogos, clássicos e confrontos mais atrativos desta rodada.",
+  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: visão geral da rodada, destacando os clássicos e jogos mais importantes. Segundo parágrafo: análise dos confrontos mais equilibrados e possíveis zebras. Terceiro parágrafo: contexto dos campeonatos e o que está em jogo para os times."
 }
 
-Foque em: clássicos, derbies, confrontos importantes, times em boa fase.`;
+REGRAS:
+- Use linguagem jornalística profissional, como se fosse uma matéria do Globo Esporte
+- Mencione o contexto atual dos times (fase boa/ruim, posição na tabela, etc.)
+- Destaque clássicos regionais e rivalidades históricas
+- NÃO use markdown no texto, apenas texto corrido
+- Separe parágrafos com \\n\\n`;
+
     } else {
-      prompt = `Você é um analista especializado em futebol brasileiro e Loteca.
+      // RESULTADOS - prompt completo com análise por jogo
+      const jogosFormatados = jogos.map((j, idx) => {
+        const time1 = j.time1 || j.timeCasa || 'Time 1';
+        const time2 = j.time2 || j.timeFora || 'Time 2';
+        const placar1 = j.placar1 !== undefined ? j.placar1 : '?';
+        const placar2 = j.placar2 !== undefined ? j.placar2 : '?';
+        return `Jogo ${idx + 1}: ${time1} (mandante) ${placar1} x ${placar2} ${time2} (visitante)`;
+      }).join('\n');
+      
+      // Calcular estatísticas
+      let vMandante = 0, empates = 0, vVisitante = 0;
+      jogos.forEach(j => {
+        const p1 = parseInt(j.placar1);
+        const p2 = parseInt(j.placar2);
+        if (p1 > p2) vMandante++;
+        else if (p1 === p2) empates++;
+        else vVisitante++;
+      });
+      
+      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos. Você acompanha os jogos pelos principais veículos: Globo Esporte, ESPN, ge.globo.com, UOL Esporte, Lance.
 
-Analise os resultados do Concurso ${concurso} da Loteca:
+Analise os RESULTADOS do Concurso ${concurso} da Loteca:
 
-${jogos.map((j, idx) => `${idx + 1}. ${j.time1} ${j.placar1} x ${j.placar2} ${j.time2}`).join('\n')}
+${jogosFormatados}
 
-IMPORTANTE:
-- Time1 é o MANDANTE (jogou em casa)
-- Time2 é o VISITANTE (jogou fora)
-- Placar1 é do mandante, Placar2 é do visitante
+Estatísticas da rodada:
+- Vitórias do mandante: ${vMandante}
+- Empates: ${empates}
+- Vitórias do visitante: ${vVisitante}
 
-Gere uma análise em formato JSON com:
+Gere uma análise COMPLETA no seguinte formato JSON. Responda APENAS com o JSON puro, sem markdown, sem crases, sem texto antes ou depois:
+
 {
-  "resumo": "Texto de até 3 linhas resumindo os resultados",
-  "detalhada": "Análise completa dos resultados (3-4 parágrafos)"
+  "resumo": "Texto de até 3 linhas (máximo 250 caracteres) com os destaques mais marcantes da rodada: zebras, goleadas, resultados surpreendentes.",
+  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: panorama geral da rodada, resultados mais marcantes e tendências (mandantes vs visitantes). Segundo parágrafo: as maiores surpresas e zebras, resultados que ninguém esperava. Terceiro parágrafo: destaques individuais, goleadas e o impacto nos campeonatos. Separe os parágrafos com \\n\\n.",
+  "analiseJogos": [
+    {
+      "jogo": 1,
+      "analise": "Análise de até 5 linhas sobre este jogo específico. Inclua: quem fez os gols (invente nomes realistas de jogadores se não souber os reais), como foi o jogo (dominante, equilibrado, virada), se o resultado foi esperado ou surpreendente, e contexto do confronto. Exemplo: 'O Corinthians dominou o Flamengo desde o início, com gols de Yuri Alberto (aos 15min) e Romero (aos 67min). Resultado surpreendente já que o Flamengo era favorito jogando em casa. O Timão mostrou solidez defensiva e eficiência no contra-ataque.'"
+    }
+  ]
 }
 
-Foque em: zebras, goleadas, vitórias importantes, estatísticas.`;
+REGRAS IMPORTANTES:
+- O array "analiseJogos" DEVE ter exatamente ${jogos.length} itens, um para cada jogo
+- Cada análise de jogo deve ter entre 3 e 5 linhas
+- Mencione autores dos gols (use nomes de jogadores conhecidos dos elencos atuais)
+- Analise se o resultado foi esperado (favorito venceu) ou zebra (azarão venceu)
+- Use linguagem jornalística profissional
+- NÃO use markdown no texto, apenas texto corrido
+- Goleadas (3+ gols de diferença) merecem destaque especial
+- Empates em clássicos são sempre notáveis
+- Vitórias de visitante são sempre mais difíceis e merecem destaque`;
     }
+
+    console.log('Prompt gerado, chamando API do Gemini...');
 
     // Chamar API do Gemini
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [{
-          parts: [{ text: prompt }]
-        }]
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 30000
+    let response;
+    try {
+      response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 8192
+          }
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 90000
+        }
+      );
+      console.log('Resposta da API recebida com sucesso');
+    } catch (apiError) {
+      console.error('Erro na chamada da API Gemini:', apiError.message);
+      if (apiError.response) {
+        console.error('Status:', apiError.response.status);
+        console.error('Data:', JSON.stringify(apiError.response.data));
       }
-    );
-
-    const textoIA = response.data.candidates[0].content.parts[0].text;
-
-    // Extrair JSON da resposta
-    const jsonMatch = textoIA.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('IA não retornou JSON válido');
+      return res.status(500).json({ 
+        success: false, 
+        error: `Erro na API do Gemini: ${apiError.message}`
+      });
     }
 
-    const analise = JSON.parse(jsonMatch[0]);
+    // Extrair texto da resposta
+    if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
+      console.error('Resposta em formato inesperado:', JSON.stringify(response.data));
+      return res.status(500).json({ success: false, error: 'Resposta da API em formato inesperado' });
+    }
 
+    const textoIA = response.data.candidates[0].content.parts[0].text;
+    console.log('Texto da IA recebido (primeiros 300 chars):', textoIA.substring(0, 300));
+
+    // Extrair JSON da resposta - limpeza robusta
+    let analise = null;
+    
+    // Remover markdown se presente
+    let textoLimpo = textoIA.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Tentar extrair JSON
+    const jsonMatch = textoLimpo.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        analise = JSON.parse(jsonMatch[0]);
+        console.log('JSON extraído com sucesso via parse direto');
+      } catch (parseError) {
+        console.log('Parse direto falhou, tentando limpar newlines...');
+        try {
+          // Substituir newlines dentro de strings por espaços
+          let jsonStr = jsonMatch[0];
+          // Estratégia: substituir \n que estão dentro de valores de string
+          jsonStr = jsonStr.replace(/\n/g, '\\n');
+          analise = JSON.parse(jsonStr);
+          console.log('JSON extraído com sucesso após limpar newlines');
+        } catch (parseError2) {
+          console.error('Erro ao parsear JSON mesmo após limpeza:', parseError2.message);
+          console.error('Texto (primeiros 500):', jsonMatch[0].substring(0, 500));
+        }
+      }
+    }
+
+    // Se não conseguiu parsear, criar análise com o texto bruto
+    if (!analise || !analise.resumo) {
+      console.log('Usando texto como análise direta (fallback)');
+      const linhas = textoIA.split('\n').filter(l => l.trim());
+      analise = {
+        resumo: linhas.slice(0, 2).join(' ').substring(0, 250),
+        detalhada: linhas.slice(2).join('\n'),
+        analiseJogos: []
+      };
+    }
+
+    // Garantir que analiseJogos existe
+    if (!analise.analiseJogos) {
+      analise.analiseJogos = [];
+    }
+
+    console.log('Resumo:', analise.resumo?.substring(0, 100));
+    console.log('Detalhada:', analise.detalhada?.substring(0, 100));
+    console.log('Jogos analisados:', analise.analiseJogos?.length || 0);
+    console.log('=== FIM gerarAnaliseIA - SUCESSO ===');
+    
     res.json({
       success: true,
       analise: {
-        resumo: analise.resumo,
-        detalhada: analise.detalhada,
-        geradaEm: new Date().toISOString()
+        resumo: analise.resumo || 'Análise gerada com sucesso.',
+        detalhada: analise.detalhada || textoIA,
+        analiseJogos: analise.analiseJogos || [],
+        geradaEm: new Date().toISOString(),
+        modelo: 'gemini-2.0-flash'
       }
     });
 
   } catch (error) {
-    console.error('Erro ao gerar análise:', error);
+    console.error('=== ERRO gerarAnaliseIA ===');
+    console.error('Mensagem:', error.message);
+    console.error('Stack:', error.stack);
     
-    // Retornar status apropriado baseado no tipo de erro
-    const statusCode = error.message.includes('obrigatório') || 
-                       error.message.includes('inválido') ? 400 : 500;
-    
-    res.status(statusCode).json({ 
+    res.status(500).json({ 
       success: false, 
-      error: error.message || 'Erro ao gerar análise'
+      error: `Erro interno: ${error.message}`
     });
   }
 });

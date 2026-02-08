@@ -159,7 +159,8 @@
                     winners13: 0,
                     accumulated: true,
                     fullAnalysis: "O concurso 1104 entrou para a história como uma das concursos mais imprevisíveis do ano. Com 6 empates (incluindo o surpreendente 2x2 entre Flamengo e Botafogo no Maracanã), os apostadores viram seus palpites ruírem. Apenas Santos e Palmeiras confirmaram o favoritismo, vencendo fora de casa. Na Europa, o Lyon surpreendeu ao vencer o PSG por 3x1, resultado que ninguém esperava. O resultado? Zero acertadores dos 14 jogos e prêmio acumulado para o próximo concurso. Análise detalhada de cada partida disponível abaixo.",
-                    jogos: []
+                    jogos: [],
+                    analiseJogos: []
                 }
             },
             news: [
@@ -343,6 +344,7 @@
             AnalysisPrevious: () => {
                 const prev = Data.analysis.previous;
                 const jogos = prev.jogos && prev.jogos.length > 0 ? prev.jogos : [];
+                const analiseJogos = prev.analiseJogos && prev.analiseJogos.length > 0 ? prev.analiseJogos : [];
                 
                 return `
                 <div class="animate-fade-in space-y-6">
@@ -352,26 +354,32 @@
                     
                     <!-- ANÁLISE GERAL -->
                     <div class="bg-app-surface p-6 rounded-2xl border border-white/5 shadow-2xl">
-                        <h2 class="text-2xl font-black text-white mb-2">Análise Completa - Concurso #${prev.id}</h2>
-                        <div class="flex gap-3 mb-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fas fa-chart-line text-app-primary text-xl"></i>
+                            <h2 class="text-2xl font-black text-white">Análise Completa - Concurso #${prev.id}</h2>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-6">
                             ${prev.accumulated ? 
-                                '<span class="text-xs font-bold text-app-primary bg-black/30 px-3 py-1 rounded-full">ACUMULOU!</span>' :
-                                `<span class="text-xs font-bold text-slate-400 bg-black/30 px-3 py-1 rounded-full">${prev.winners} Ganhador${prev.winners !== 1 ? 'es' : ''} (14 acertos)</span>`
+                                '<span class="text-xs font-bold text-app-primary bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-full"><i class="fas fa-arrow-trend-up mr-1"></i>ACUMULOU!</span>' :
+                                `<span class="text-xs font-bold text-slate-400 bg-black/30 px-3 py-1.5 rounded-full"><i class="fas fa-trophy mr-1"></i>${prev.winners} Ganhador${prev.winners !== 1 ? 'es' : ''} (14 acertos)</span>`
                             }
                             ${prev.winners13 > 0 ? 
-                                `<span class="text-xs font-bold text-slate-500 bg-black/30 px-3 py-1 rounded-full">${prev.winners13} com 13 acertos</span>` : ''
+                                `<span class="text-xs font-bold text-slate-500 bg-black/30 px-3 py-1.5 rounded-full">${prev.winners13} com 13 acertos</span>` : ''
                             }
                         </div>
-                        <div class="prose prose-invert max-w-none">
+                        <div class="prose prose-invert max-w-none bg-black/20 p-5 rounded-xl">
                             <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">${prev.fullAnalysis}</p>
                         </div>
                     </div>
                     
-                    <!-- RESULTADOS DOS JOGOS -->
+                    <!-- RESULTADOS DOS JOGOS COM ANÁLISE INDIVIDUAL -->
                     ${jogos.length > 0 ? `
                     <div class="bg-app-surface p-6 rounded-2xl border border-white/5">
-                        <h3 class="text-lg font-bold text-white mb-4"><i class="fas fa-futbol mr-2"></i>Resultado de Cada Partida</h3>
-                        <div class="space-y-3">
+                        <div class="flex items-center gap-3 mb-6">
+                            <i class="fas fa-futbol text-app-secondary text-xl"></i>
+                            <h3 class="text-lg font-black text-white">Resultado e Análise de Cada Partida</h3>
+                        </div>
+                        <div class="space-y-4">
                             ${jogos.map((jogo, idx) => {
                                 const placar = jogo.placar1 !== undefined && jogo.placar2 !== undefined ? 
                                     `${jogo.placar1} x ${jogo.placar2}` : 'vs';
@@ -379,19 +387,32 @@
                                                  jogo.placar1 < jogo.placar2 ? 'Col. 2' : 'Empate';
                                 const corResultado = jogo.placar1 > jogo.placar2 ? 'text-green-400' : 
                                                     jogo.placar1 < jogo.placar2 ? 'text-red-400' : 'text-yellow-400';
+                                const bgResultado = jogo.placar1 > jogo.placar2 ? 'bg-green-500/10 border-green-500/20' : 
+                                                    jogo.placar1 < jogo.placar2 ? 'bg-red-500/10 border-red-500/20' : 'bg-yellow-500/10 border-yellow-500/20';
+                                
+                                // Buscar análise individual deste jogo
+                                const analiseJogo = analiseJogos.find(a => a.jogo === (idx + 1));
+                                const textoAnalise = analiseJogo ? analiseJogo.analise : '';
                                 
                                 return `
-                                <div class="bg-black/20 p-4 rounded-lg hover:bg-black/30 transition-colors">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex-1">
-                                            <div class="text-xs text-slate-500 mb-1">JOGO ${idx + 1}</div>
-                                            <div class="text-sm font-bold text-white">
-                                                ${jogo.time1} <span class="text-app-primary mx-2">${placar}</span> ${jogo.time2}
+                                <div class="bg-black/20 p-4 rounded-xl hover:bg-black/30 transition-colors border border-white/5">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-xs font-black text-slate-600 bg-black/30 w-8 h-8 rounded-full flex items-center justify-center">${idx + 1}</span>
+                                            <div>
+                                                <div class="text-sm font-bold text-white">
+                                                    ${jogo.time1} <span class="text-app-primary font-black mx-2">${placar}</span> ${jogo.time2}
+                                                </div>
+                                                ${jogo.data ? `<div class="text-xs text-slate-500 mt-0.5"><i class="far fa-calendar mr-1"></i>${jogo.data}</div>` : ''}
                                             </div>
                                         </div>
-                                        <span class="text-xs font-bold ${corResultado} bg-black/30 px-2 py-1 rounded">${resultado}</span>
+                                        <span class="text-xs font-bold ${corResultado} ${bgResultado} border px-3 py-1.5 rounded-full">${resultado}</span>
                                     </div>
-                                    ${jogo.data ? `<div class="text-xs text-slate-500 mt-1"><i class="far fa-calendar mr-1"></i>${jogo.data}</div>` : ''}
+                                    ${textoAnalise ? `
+                                    <div class="mt-3 pt-3 border-t border-white/5">
+                                        <p class="text-xs text-slate-400 leading-relaxed"><i class="fas fa-microchip text-app-ai mr-1.5"></i>${textoAnalise}</p>
+                                    </div>
+                                    ` : ''}
                                 </div>
                                 `;
                             }).join('')}
@@ -752,6 +773,48 @@
         };
 
         // ANÁLISE COM IA
+        // Função utilitária para limpar textos que podem conter JSON bruto da IA
+        function limparTextoIA(texto) {
+            if (!texto || typeof texto !== 'string') return texto || '';
+            // Se o texto começa com ```json, tentar extrair o JSON e pegar o campo correto
+            let limpo = texto.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            // Se parece ser um JSON, tentar parsear e extrair campos
+            if (limpo.startsWith('{')) {
+                // Tentar parsear diretamente
+                try {
+                    const parsed = JSON.parse(limpo);
+                    if (parsed.resumo && parsed.detalhada) return parsed;
+                    if (parsed.resumo) return parsed.resumo;
+                    if (parsed.detalhada) return parsed.detalhada;
+                } catch(e) {
+                    // JSON pode ter newlines dentro de strings - substituir por \\n
+                    try {
+                        const inicio = limpo.indexOf('{');
+                        const fim = limpo.lastIndexOf('}');
+                        if (inicio >= 0 && fim > inicio) {
+                            let jsonStr = limpo.substring(inicio, fim + 1);
+                            jsonStr = jsonStr.replace(/\n/g, '\\n');
+                            const parsed2 = JSON.parse(jsonStr);
+                            if (parsed2.resumo && parsed2.detalhada) return parsed2;
+                            if (parsed2.resumo) return parsed2.resumo;
+                            if (parsed2.detalhada) return parsed2.detalhada;
+                        }
+                    } catch(e2) {
+                        // Tentar regex como último recurso
+                        const matchR = limpo.match(/"resumo"\s*:\s*"([^"]+)"/); 
+                        const matchD = limpo.match(/"detalhada"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/s);
+                        if (matchR || matchD) {
+                            return {
+                                resumo: matchR ? matchR[1] : '',
+                                detalhada: matchD ? matchD[1].replace(/\\n/g, '\n') : ''
+                            };
+                        }
+                    }
+                }
+            }
+            return limpo;
+        }
+
         const AIAnalyzer = {
             async analisarConcurso(dados) {
                 try {
@@ -792,10 +855,39 @@
                         throw new Error(result.error || 'Resposta inválida');
                     }
                     
+                    // Limpar textos que podem conter JSON bruto
+                    let resumo = result.analise.resumo || '';
+                    let detalhada = result.analise.detalhada || '';
+                    
+                    const resumoLimpo = limparTextoIA(resumo);
+                    const detalhadaLimpa = limparTextoIA(detalhada);
+                    
+                    // Se limparTextoIA retornou um objeto com ambos campos
+                    if (typeof resumoLimpo === 'object' && resumoLimpo.resumo) {
+                        resumo = resumoLimpo.resumo;
+                        detalhada = resumoLimpo.detalhada || detalhada;
+                    } else {
+                        resumo = typeof resumoLimpo === 'string' ? resumoLimpo : resumo;
+                    }
+                    if (typeof detalhadaLimpa === 'object' && detalhadaLimpa.detalhada) {
+                        detalhada = detalhadaLimpa.detalhada;
+                        if (!resumo || resumo.startsWith('```')) resumo = detalhadaLimpa.resumo || resumo;
+                    } else {
+                        detalhada = typeof detalhadaLimpa === 'string' ? detalhadaLimpa : detalhada;
+                    }
+                    
+                    // Extrair analiseJogos se disponível
+                    let analiseJogos = result.analise.analiseJogos || [];
+                    
                     console.log('Análise gerada com sucesso!');
+                    console.log('Resumo limpo:', resumo.substring(0, 100));
+                    console.log('Detalhada limpa:', detalhada.substring(0, 100));
+                    console.log('Análises por jogo:', analiseJogos.length);
+                    
                     return {
-                        resumo: result.analise.resumo,
-                        analiseDetalhada: result.analise.detalhada
+                        resumo: resumo,
+                        analiseDetalhada: detalhada,
+                        analiseJogos: analiseJogos
                     };
                     
                 } catch (error) {
@@ -803,7 +895,8 @@
                     alert('Erro ao gerar análise com IA: ' + error.message + '. Usando análise padrão.');
                     return {
                         resumo: `Concurso ${dados.concurso} - Dados oficiais da Caixa`,
-                        analiseDetalhada: 'Análise indisponível no momento.'
+                        analiseDetalhada: 'Análise indisponível no momento.',
+                        analiseJogos: []
                     };
                 }
             },
@@ -934,8 +1027,13 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     
                     // Carregar análise gerada pela IA
                     if (concurso.analise) {
-                        Data.analysis.current.summary = concurso.analise.resumo;
-                        Data.analysis.current.fullAnalysis = concurso.analise.detalhada;
+                        let r = limparTextoIA(concurso.analise.resumo);
+                        let d = limparTextoIA(concurso.analise.detalhada);
+                        // Se retornou objeto com ambos campos
+                        if (typeof r === 'object' && r.resumo) { d = r.detalhada || d; r = r.resumo; }
+                        if (typeof d === 'object' && d.detalhada) { if (!r || typeof r !== 'string') r = d.resumo; d = d.detalhada; }
+                        Data.analysis.current.summary = typeof r === 'string' ? r : (concurso.analise.resumo || '');
+                        Data.analysis.current.fullAnalysis = typeof d === 'string' ? d : (concurso.analise.detalhada || '');
                     } else {
                         // Fallback se não tiver análise
                         if (concurso.dataConcurso) {
@@ -1023,8 +1121,18 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     
                     // Carregar análise gerada pela IA
                     if (concurso.analise) {
-                        Data.analysis.previous.summary = concurso.analise.resumo;
-                        Data.analysis.previous.fullAnalysis = concurso.analise.detalhada;
+                        let r = limparTextoIA(concurso.analise.resumo);
+                        let d = limparTextoIA(concurso.analise.detalhada);
+                        // Se retornou objeto com ambos campos
+                        if (typeof r === 'object' && r.resumo) { d = r.detalhada || d; r = r.resumo; }
+                        if (typeof d === 'object' && d.detalhada) { if (!r || typeof r !== 'string') r = d.resumo; d = d.detalhada; }
+                        Data.analysis.previous.summary = typeof r === 'string' ? r : (concurso.analise.resumo || '');
+                        Data.analysis.previous.fullAnalysis = typeof d === 'string' ? d : (concurso.analise.detalhada || '');
+                        
+                        // Carregar análise individual por jogo
+                        if (concurso.analise.analiseJogos && Array.isArray(concurso.analise.analiseJogos)) {
+                            Data.analysis.previous.analiseJogos = concurso.analise.analiseJogos;
+                        }
                     } else {
                         // Fallback se não tiver análise
                         const ganhadores = concurso.ganhadores14 || 0;
@@ -1042,6 +1150,11 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     }
                     
                     console.log(`Resultados do concurso ${concurso.concurso} carregados com sucesso!`);
+                    
+                    // Re-renderizar a homepage para mostrar dados atualizados
+                    if (State.currentRoute === 'home') {
+                        Router.render();
+                    }
                     
                 } catch (error) {
                     console.error('Erro ao carregar concurso anterior:', error);
@@ -1254,6 +1367,7 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                         analise: {
                             resumo: analise.resumo,
                             detalhada: analise.analiseDetalhada,
+                            analiseJogos: analise.analiseJogos || [],
                             geradaEm: new Date().toISOString()
                         }
                     };

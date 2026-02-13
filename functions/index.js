@@ -257,25 +257,35 @@ exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey]}, async 
         return `Jogo ${idx + 1}: ${time1} (mandante) x ${time2} (visitante) - ${data}`;
       }).join('\n');
       
-      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos estaduais, Série A, B, C e D do Brasileirão, Copa do Brasil e competições internacionais.
+      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos estaduais, Série A, B, C e D do Brasileirão, Copa do Brasil e competições internacionais. Você acompanha os jogos pelos principais veículos: Globo Esporte, ESPN, ge.globo.com, UOL Esporte, Lance, CazéTV, SporTV.
 
 Analise a PROGRAMAÇÃO do Concurso ${concurso} da Loteca com os seguintes jogos:
 
 ${jogosFormatados}
 
-Gere uma análise completa no seguinte formato JSON. Responda APENAS com o JSON puro, sem markdown, sem crases, sem texto antes ou depois:
+Gere uma análise COMPLETA no seguinte formato JSON. Responda APENAS com o JSON puro, sem markdown, sem crases, sem texto antes ou depois:
 
 {
   "resumo": "Texto de até 3 linhas (máximo 250 caracteres) destacando os principais jogos, clássicos e confrontos mais atrativos desta rodada.",
-  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: visão geral da rodada, destacando os clássicos e jogos mais importantes. Segundo parágrafo: análise dos confrontos mais equilibrados e possíveis zebras. Terceiro parágrafo: contexto dos campeonatos e o que está em jogo para os times."
+  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: visão geral da rodada, destacando os clássicos e jogos mais importantes. Segundo parágrafo: análise dos confrontos mais equilibrados e possíveis zebras. Terceiro parágrafo: contexto dos campeonatos e o que está em jogo para os times. Separe os parágrafos com duas quebras de linha.",
+  "analiseJogos": [
+    {
+      "jogo": 1,
+      "analise": "Análise de até 5 linhas sobre este confronto específico. Inclua: contexto atual dos dois times (fase, posição na tabela, últimos resultados), histórico do confronto (quem leva vantagem), jogadores-chave de cada lado, e um palpite fundamentado sobre o resultado mais provável."
+    }
+  ]
 }
 
-REGRAS:
-- Use linguagem jornalística profissional, como se fosse uma matéria do Globo Esporte
-- Mencione o contexto atual dos times (fase boa/ruim, posição na tabela, etc.)
+REGRAS IMPORTANTES:
+- O array "analiseJogos" DEVE ter exatamente ${jogos.length} itens, um para cada jogo
+- Cada análise de jogo deve ter entre 3 e 5 linhas
+- Mencione a fase atual dos times (invicto, em crise, líder, rebaixamento, etc.)
+- Mencione jogadores-chave e destaques de cada equipe
+- Inclua um palpite fundamentado (vitória casa, empate ou vitória visitante)
 - Destaque clássicos regionais e rivalidades históricas
-- NÃO use markdown no texto, apenas texto corrido
-- Separe parágrafos com \\n\\n`;
+- Analise se o mandante é favorito ou se há possibilidade de zebra
+- Use linguagem jornalística profissional, como se fosse uma matéria do Globo Esporte
+- NÃO use markdown no texto, apenas texto corrido`;
 
     } else {
       // RESULTADOS - prompt completo com análise por jogo
@@ -297,7 +307,7 @@ REGRAS:
         else vVisitante++;
       });
       
-      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos. Você acompanha os jogos pelos principais veículos: Globo Esporte, ESPN, ge.globo.com, UOL Esporte, Lance.
+      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos. Você acompanha os jogos pelos principais veículos: Globo Esporte, ESPN, ge.globo.com, UOL Esporte, Lance, CazéTV, SporTV.
 
 Analise os RESULTADOS do Concurso ${concurso} da Loteca:
 
@@ -312,7 +322,7 @@ Gere uma análise COMPLETA no seguinte formato JSON. Responda APENAS com o JSON 
 
 {
   "resumo": "Texto de até 3 linhas (máximo 250 caracteres) com os destaques mais marcantes da rodada: zebras, goleadas, resultados surpreendentes.",
-  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: panorama geral da rodada, resultados mais marcantes e tendências (mandantes vs visitantes). Segundo parágrafo: as maiores surpresas e zebras, resultados que ninguém esperava. Terceiro parágrafo: destaques individuais, goleadas e o impacto nos campeonatos. Separe os parágrafos com \\n\\n.",
+  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: panorama geral da rodada, resultados mais marcantes e tendências (mandantes vs visitantes). Segundo parágrafo: as maiores surpresas e zebras, resultados que ninguém esperava. Terceiro parágrafo: destaques individuais, goleadas e o impacto nos campeonatos. Separe os parágrafos com duas quebras de linha.",
   "analiseJogos": [
     {
       "jogo": 1,

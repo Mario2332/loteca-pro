@@ -997,23 +997,32 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     
                     const concurso = concursoDoc.data();
                     
+                    // Carregar analiseJogos se disponível
+                    const analiseJogosArr = (concurso.analise && concurso.analise.analiseJogos) ? concurso.analise.analiseJogos : [];
+                    
                     // Converter dados do Firestore para formato do Data.games
-                    Data.games = concurso.jogos.map(jogo => ({
-                        id: jogo.jogo,
-                        tour: 'Loteca',
-                        date: jogo.data || '-',
-                        home: { 
-                            name: jogo.time1,
-                            short: jogo.time1.split('/')[0].substring(0, 3).toUpperCase()
-                        },
-                        away: { 
-                            name: jogo.time2,
-                            short: jogo.time2.split('/')[0].substring(0, 3).toUpperCase()
-                        },
-                        probs: { h: 33, d: 34, a: 33 },
-                        comm: { h: 33, d: 34, a: 33 },
-                        analysis: `${jogo.time1} x ${jogo.time2}`
-                    }));
+                    Data.games = concurso.jogos.map((jogo, idx) => {
+                        // Buscar análise individual deste jogo
+                        const analiseJogo = analiseJogosArr.find(a => a.jogo === (idx + 1)) || analiseJogosArr[idx];
+                        const textoAnalise = analiseJogo ? analiseJogo.analise : `${jogo.time1} x ${jogo.time2}`;
+                        
+                        return {
+                            id: jogo.jogo,
+                            tour: 'Loteca',
+                            date: jogo.data || '-',
+                            home: { 
+                                name: jogo.time1,
+                                short: jogo.time1.split('/')[0].substring(0, 3).toUpperCase()
+                            },
+                            away: { 
+                                name: jogo.time2,
+                                short: jogo.time2.split('/')[0].substring(0, 3).toUpperCase()
+                            },
+                            probs: { h: 33, d: 34, a: 33 },
+                            comm: { h: 33, d: 34, a: 33 },
+                            analysis: textoAnalise
+                        };
+                    });
                     
                     Data.loaded = true;
                     Data.concursoAtual = concurso.concurso;

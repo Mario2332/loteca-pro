@@ -202,6 +202,12 @@
                     analiseJogos: []
                 }
             },
+            mercado: {
+                destaque: [],
+                rumores: [],
+                lesoes: [],
+                impacto: ''
+            },
             news: [
                 { id: 1, teamId: 'cru', type: "chegada", title: "Gabigol no Cruzeiro", desc: "Empréstimo confirmado.", time: "2h", source: "ge", hot: true },
                 { id: 2, teamId: 'san', type: "renovacao", title: "Neymar Fica", desc: "Até 2026.", time: "5h", source: "UOL", hot: true },
@@ -618,8 +624,8 @@
                         </div>
                         ${!isSubmitted ? `
                             <div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg">
-                                <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Progresso</span><span class="font-bold text-app-primary">${voteCount}/14</span></div>
-                                <div class="h-2 bg-black/40 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-green-600 to-app-primary transition-all duration-500" style="width: ${progress}%"></div></div>
+                                <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Progresso</span><span id="vote-progress-text" class="font-bold text-app-primary">${voteCount}/14</span></div>
+                                <div class="h-2 bg-black/40 rounded-full overflow-hidden"><div id="vote-progress-bar" class="h-full bg-gradient-to-r from-green-600 to-app-primary transition-all duration-500" style="width: ${progress}%"></div></div>
                             </div>
                         ` : `<div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg flex items-center gap-3 border-l-4 border-app-primary"><div class="w-10 h-10 rounded-full bg-app-primary/20 flex items-center justify-center text-app-primary"><i class="fas fa-check text-xl"></i></div><div><h3 class="text-sm font-bold text-white">Enviado!</h3><p class="text-[10px] text-slate-300">Veja como os outros usuários votaram.</p></div><button onclick="Actions.resetVotes()" class="ml-auto text-[10px] text-slate-500 underline">Refazer</button></div>`}
                         <div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden shadow-xl">
@@ -629,9 +635,9 @@
                                     const renderCell = (type, label) => {
                                         const isSel = vote === type;
                                         let cls = isSel ? (type==='h'?'bg-green-500 text-black font-bold':(type==='d'?'bg-yellow-500 text-black font-bold':'bg-red-500 text-black font-bold')) : "bg-slate-800 text-slate-400";
-                                        return `<button onclick="Actions.vote(${g.id}, '${type}')" class="h-9 w-full rounded flex items-center justify-center text-xs transition-all ${cls} hover:scale-105">${isSel?'<i class="fas fa-check"></i>':label}</button>`;
+                                        return `<button data-vote-type="${type}" onclick="Actions.vote(${g.id}, '${type}')" class="h-9 w-full rounded flex items-center justify-center text-xs transition-all ${cls} hover:scale-105">${isSel?'<i class="fas fa-check"></i>':label}</button>`;
                                     };
-                                    return `<div class="grid grid-cols-12 gap-2 border-b border-white/5 items-center py-3 px-3"><div class="col-span-1 text-center text-xs font-bold text-slate-500">${g.id}</div><div class="col-span-4 text-right text-xs font-bold text-white truncate pr-2">${g.home.name}</div><div class="col-span-1">${renderCell('h','1')}</div><div class="col-span-1">${renderCell('d','X')}</div><div class="col-span-1">${renderCell('a','2')}</div><div class="col-span-4 text-left text-xs font-bold text-white truncate pl-2">${g.away.name}</div></div>`;
+                                    return `<div data-game-id="${g.id}" class="grid grid-cols-12 gap-2 border-b border-white/5 items-center py-3 px-3"><div class="col-span-1 text-center text-xs font-bold text-slate-500">${g.id}</div><div class="col-span-4 text-right text-xs font-bold text-white truncate pr-2">${g.home.name}</div><div class="col-span-1">${renderCell('h','1')}</div><div class="col-span-1">${renderCell('d','X')}</div><div class="col-span-1">${renderCell('a','2')}</div><div class="col-span-4 text-left text-xs font-bold text-white truncate pl-2">${g.away.name}</div></div>`;
                                 } else {
                                     const total = g.comm.h + g.comm.d + g.comm.a;
                                     const percH = Math.round((g.comm.h / total) * 100);
@@ -833,7 +839,99 @@
                 `;
             },
 
-            Market: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Mercado da Bola</h2><div class="bg-app-surface p-6 rounded-2xl border border-white/5"><p class="text-sm text-slate-400">Últimas transferências e rumores...</p></div></div>`,
+            Market: () => {
+                const transferencias = Data.mercado || {
+                    destaque: [],
+                    rumores: [],
+                    lesoes: []
+                };
+                return `
+                <div class="animate-fade-in space-y-6">
+                    <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
+                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-exchange-alt text-app-primary mr-2"></i>Mercado da Bola</h2>
+                        <p class="text-sm text-slate-300">Transferencias, rumores e lesoes que impactam a Loteca</p>
+                    </div>
+
+                    <!-- TRANSFERENCIAS CONFIRMADAS -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-green-500/20">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-check-circle text-green-400 mr-2"></i>Transferencias Confirmadas</h3>
+                        ${transferencias.destaque.length > 0 ? transferencias.destaque.map(t => `
+                            <div class="flex items-center gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5">
+                                <div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-user-plus text-green-400"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-white font-bold text-sm">${t.jogador}</div>
+                                    <div class="text-xs text-slate-400">${t.de} <i class="fas fa-arrow-right text-app-primary mx-1"></i> ${t.para}</div>
+                                    <div class="text-xs text-slate-500 mt-1">${t.data || ''}</div>
+                                </div>
+                                ${t.valor ? `<div class="text-app-primary font-bold text-sm">${t.valor}</div>` : ''}
+                            </div>
+                        `).join('') : `
+                            <div class="text-center py-8">
+                                <i class="fas fa-newspaper text-4xl text-slate-700 mb-3"></i>
+                                <p class="text-sm text-slate-500">As transferencias confirmadas que impactam os jogos da Loteca serao exibidas aqui.</p>
+                                <p class="text-xs text-slate-600 mt-2">Dados atualizados automaticamente a cada concurso.</p>
+                            </div>
+                        `}
+                    </div>
+
+                    <!-- RUMORES -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-yellow-500/20">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-comment-dots text-yellow-400 mr-2"></i>Rumores e Negociacoes</h3>
+                        ${transferencias.rumores.length > 0 ? transferencias.rumores.map(r => `
+                            <div class="flex items-center gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5">
+                                <div class="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-question text-yellow-400"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-white font-bold text-sm">${r.jogador}</div>
+                                    <div class="text-xs text-slate-400">${r.descricao}</div>
+                                    <div class="text-xs text-slate-500 mt-1"><i class="fas fa-newspaper mr-1"></i>${r.fonte || 'Imprensa'}</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-[10px] font-bold ${r.probabilidade === 'alta' ? 'bg-green-500/20 text-green-400' : (r.probabilidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400')}">${(r.probabilidade || 'media').toUpperCase()}</span>
+                            </div>
+                        `).join('') : `
+                            <div class="text-center py-8">
+                                <i class="fas fa-comment-slash text-4xl text-slate-700 mb-3"></i>
+                                <p class="text-sm text-slate-500">Rumores e negociacoes em andamento serao exibidos aqui.</p>
+                            </div>
+                        `}
+                    </div>
+
+                    <!-- LESOES E DESFALQUES -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-red-500/20">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-medkit text-red-400 mr-2"></i>Lesoes e Desfalques</h3>
+                        ${transferencias.lesoes.length > 0 ? transferencias.lesoes.map(l => `
+                            <div class="flex items-center gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5">
+                                <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-heartbeat text-red-400"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-white font-bold text-sm">${l.jogador} <span class="text-xs text-slate-400 font-normal">(${l.time})</span></div>
+                                    <div class="text-xs text-slate-400">${l.descricao}</div>
+                                    <div class="text-xs text-slate-500 mt-1">Previsao: ${l.previsao || 'Indefinida'}</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-[10px] font-bold ${l.gravidade === 'alta' ? 'bg-red-500/20 text-red-400' : (l.gravidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400')}">${(l.gravidade || 'media').toUpperCase()}</span>
+                            </div>
+                        `).join('') : `
+                            <div class="text-center py-8">
+                                <i class="fas fa-notes-medical text-4xl text-slate-700 mb-3"></i>
+                                <p class="text-sm text-slate-500">Lesoes e desfalques dos times da Loteca serao exibidos aqui.</p>
+                            </div>
+                        `}
+                    </div>
+
+                    <!-- IMPACTO NA LOTECA -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-violet-500/20">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-lightbulb text-violet-400 mr-2"></i>Impacto na Loteca</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            ${Data.mercado && Data.mercado.impacto ? Data.mercado.impacto : 'A analise de impacto das movimentacoes de mercado nos jogos da Loteca sera gerada automaticamente quando o concurso for publicado. Fique atento as transferencias e lesoes que podem mudar o rumo dos jogos!'}
+                        </p>
+                    </div>
+                </div>
+                `;
+            },
             
             Admin: () => {
                 if (!Auth.user || Auth.user.email !== 'mateusmachado11m@gmail.com') {
@@ -906,7 +1004,142 @@
                 </div>
                 `;
             },
-            Prices: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Tabela de Preços</h2><div class="bg-app-surface p-6 rounded-2xl border border-white/5"><p class="text-sm text-slate-400">Preços oficiais da Caixa Econômica.</p></div></div>`,
+            Prices: () => {
+                const precos = [
+                    {d:1,t:0,a:2,v:'R$ 4,00'},{d:2,t:0,a:4,v:'R$ 8,00'},{d:3,t:0,a:8,v:'R$ 16,00'},{d:4,t:0,a:16,v:'R$ 32,00'},{d:5,t:0,a:32,v:'R$ 64,00'},{d:6,t:0,a:64,v:'R$ 128,00'},{d:7,t:0,a:128,v:'R$ 256,00'},{d:8,t:0,a:256,v:'R$ 512,00'},{d:9,t:0,a:512,v:'R$ 1.024,00'},
+                    {d:0,t:1,a:3,v:'R$ 6,00'},{d:1,t:1,a:6,v:'R$ 12,00'},{d:2,t:1,a:12,v:'R$ 24,00'},{d:3,t:1,a:24,v:'R$ 48,00'},{d:4,t:1,a:48,v:'R$ 96,00'},{d:5,t:1,a:96,v:'R$ 192,00'},{d:6,t:1,a:192,v:'R$ 384,00'},{d:7,t:1,a:384,v:'R$ 768,00'},{d:8,t:1,a:768,v:'R$ 1.536,00'},
+                    {d:0,t:2,a:9,v:'R$ 18,00'},{d:1,t:2,a:18,v:'R$ 36,00'},{d:2,t:2,a:36,v:'R$ 72,00'},{d:3,t:2,a:72,v:'R$ 144,00'},{d:4,t:2,a:144,v:'R$ 288,00'},{d:5,t:2,a:288,v:'R$ 576,00'},{d:6,t:2,a:576,v:'R$ 1.152,00'},
+                    {d:0,t:3,a:27,v:'R$ 54,00'},{d:1,t:3,a:54,v:'R$ 108,00'},{d:2,t:3,a:108,v:'R$ 216,00'},{d:3,t:3,a:216,v:'R$ 432,00'},{d:4,t:3,a:432,v:'R$ 864,00'},{d:5,t:3,a:864,v:'R$ 1.728,00'},
+                    {d:0,t:4,a:81,v:'R$ 162,00'},{d:1,t:4,a:162,v:'R$ 324,00'},{d:2,t:4,a:324,v:'R$ 648,00'},{d:3,t:4,a:648,v:'R$ 1.296,00'},
+                    {d:0,t:5,a:243,v:'R$ 486,00'},{d:1,t:5,a:486,v:'R$ 972,00'},
+                    {d:0,t:6,a:729,v:'R$ 1.458,00'}
+                ];
+                const [filtroTriplo, setFiltro] = [State.filtroTriplo || 'todos', (v) => { State.filtroTriplo = v; Router.render(); }];
+                const filtered = filtroTriplo === 'todos' ? precos : precos.filter(p => p.t === parseInt(filtroTriplo));
+                return `
+                <div class="animate-fade-in space-y-6">
+                    <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
+                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-tag text-app-primary mr-2"></i>Tabela de Precos da Loteca</h2>
+                        <p class="text-sm text-slate-300">Precos oficiais da Caixa Economica Federal - Vigente desde Julho/2025</p>
+                    </div>
+
+                    <!-- COMO FUNCIONA -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-white/5">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-info-circle text-blue-400 mr-2"></i>Como Funciona</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-black/20 p-4 rounded-lg border border-white/5">
+                                <div class="text-2xl mb-2"><i class="fas fa-futbol text-green-400"></i></div>
+                                <h4 class="text-white font-bold text-sm mb-1">Aposta Simples</h4>
+                                <p class="text-xs text-slate-400">Marque 1 palpite por jogo nos 14 jogos + 1 duplo obrigatorio. Valor: <span class="text-app-primary font-bold">R$ 4,00</span></p>
+                            </div>
+                            <div class="bg-black/20 p-4 rounded-lg border border-white/5">
+                                <div class="text-2xl mb-2"><i class="fas fa-clone text-yellow-400"></i></div>
+                                <h4 class="text-white font-bold text-sm mb-1">Duplo</h4>
+                                <p class="text-xs text-slate-400">Marque 2 resultados para o mesmo jogo. Cada duplo <span class="text-yellow-400 font-bold">dobra</span> o valor da aposta.</p>
+                            </div>
+                            <div class="bg-black/20 p-4 rounded-lg border border-white/5">
+                                <div class="text-2xl mb-2"><i class="fas fa-layer-group text-red-400"></i></div>
+                                <h4 class="text-white font-bold text-sm mb-1">Triplo</h4>
+                                <p class="text-xs text-slate-400">Marque os 3 resultados para o mesmo jogo. Cada triplo <span class="text-red-400 font-bold">triplica</span> o valor da aposta.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CALCULADORA RAPIDA -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-violet-500/20">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-calculator text-violet-400 mr-2"></i>Calculadora Rapida</h3>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1">Duplos</label>
+                                <input type="number" id="calc-duplos" min="0" max="14" value="1" class="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-center text-lg font-bold" onchange="Actions.calcularPreco()">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1">Triplos</label>
+                                <input type="number" id="calc-triplos" min="0" max="14" value="0" class="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-center text-lg font-bold" onchange="Actions.calcularPreco()">
+                            </div>
+                        </div>
+                        <div id="calc-resultado" class="bg-black/30 p-4 rounded-lg border border-violet-500/20 text-center">
+                            <div class="text-xs text-slate-400 mb-1">Valor da Aposta</div>
+                            <div class="text-3xl font-black text-app-primary">R$ 4,00</div>
+                            <div class="text-xs text-slate-500 mt-1">2 apostas</div>
+                        </div>
+                    </div>
+
+                    <!-- FILTRO -->
+                    <div class="bg-app-surface p-4 rounded-xl border border-white/5">
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <span class="text-xs text-slate-400 font-bold">Filtrar por triplos:</span>
+                            ${['todos','0','1','2','3','4','5','6'].map(v => {
+                                const isActive = filtroTriplo === v;
+                                const label = v === 'todos' ? 'Todos' : v + (v === '1' ? ' triplo' : ' triplos');
+                                return `<button onclick="State.filtroTriplo='${v}'; Router.render()" class="px-3 py-1 rounded-full text-xs font-bold transition-all ${isActive ? 'bg-app-primary text-black' : 'bg-white/5 text-slate-400 hover:bg-white/10'}">${label}</button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- TABELA -->
+                    <div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden">
+                        <div class="grid grid-cols-4 gap-0 bg-black/40 p-3 border-b border-white/10">
+                            <div class="text-xs font-bold text-slate-300 text-center">Duplos</div>
+                            <div class="text-xs font-bold text-slate-300 text-center">Triplos</div>
+                            <div class="text-xs font-bold text-slate-300 text-center">Apostas</div>
+                            <div class="text-xs font-bold text-slate-300 text-center">Valor</div>
+                        </div>
+                        ${filtered.map((p, i) => {
+                            const bgClass = i % 2 === 0 ? 'bg-black/10' : '';
+                            const isSimples = p.d === 1 && p.t === 0;
+                            return `<div class="grid grid-cols-4 gap-0 p-3 border-b border-white/5 ${bgClass} ${isSimples ? 'bg-app-primary/10 border-l-4 border-l-app-primary' : ''}">
+                                <div class="text-sm text-white text-center font-bold">${p.d}</div>
+                                <div class="text-sm text-white text-center font-bold">${p.t}</div>
+                                <div class="text-sm text-slate-300 text-center">${p.a.toLocaleString('pt-BR')}</div>
+                                <div class="text-sm text-center font-bold ${isSimples ? 'text-app-primary' : 'text-white'}">${p.v}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+
+                    <!-- PREMIACAO -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-white/5">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-trophy text-yellow-400 mr-2"></i>Premiacao</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between bg-black/20 p-4 rounded-lg">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center"><span class="text-yellow-400 font-black">1</span></div>
+                                    <div><div class="text-white font-bold text-sm">14 Acertos</div><div class="text-xs text-slate-400">Premio principal</div></div>
+                                </div>
+                                <div class="text-app-primary font-black text-lg">70%</div>
+                            </div>
+                            <div class="flex items-center justify-between bg-black/20 p-4 rounded-lg">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-slate-500/20 flex items-center justify-center"><span class="text-slate-300 font-black">2</span></div>
+                                    <div><div class="text-white font-bold text-sm">13 Acertos</div><div class="text-xs text-slate-400">Premio secundario</div></div>
+                                </div>
+                                <div class="text-slate-300 font-black text-lg">30%</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-4">* O premio bruto corresponde a 55% da arrecadacao total do concurso. A divisao acima se aplica sobre o premio bruto.</p>
+                    </div>
+
+                    <!-- BOLAO -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-white/5">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-users text-blue-400 mr-2"></i>Bolao</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-black/20 p-4 rounded-lg text-center">
+                                <div class="text-2xl font-black text-white">R$ 16</div>
+                                <div class="text-xs text-slate-400 mt-1">Valor minimo</div>
+                            </div>
+                            <div class="bg-black/20 p-4 rounded-lg text-center">
+                                <div class="text-2xl font-black text-white">R$ 4</div>
+                                <div class="text-xs text-slate-400 mt-1">Cota minima</div>
+                            </div>
+                            <div class="bg-black/20 p-4 rounded-lg text-center">
+                                <div class="text-2xl font-black text-white">2-50</div>
+                                <div class="text-xs text-slate-400 mt-1">Participantes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            },
             Ranking: () => {
                 const [activeTab, setTab] = [State.rankingTab || 'round', (t) => { State.rankingTab = t; Router.render(); }];
                 const data = Data.ranking[activeTab];
@@ -1066,7 +1299,32 @@
 
         // --- ACTIONS ---
         const Actions = {
-            vote: (gid, type) => { Store.setVote(gid, type); Router.render(); },
+            vote: (gid, type) => {
+                Store.setVote(gid, type);
+                // Atualizar apenas os botões do jogo clicado (sem re-renderizar toda a página)
+                const data = Store.getAppData();
+                const row = document.querySelector(`[data-game-id="${gid}"]`);
+                if (row) {
+                    const buttons = row.querySelectorAll('button[data-vote-type]');
+                    buttons.forEach(btn => {
+                        const t = btn.getAttribute('data-vote-type');
+                        const isSel = data.votes[gid] === t;
+                        btn.className = `h-9 w-full rounded flex items-center justify-center text-xs transition-all hover:scale-105 ${
+                            isSel ? (t==='h'?'bg-green-500 text-black font-bold':(t==='d'?'bg-yellow-500 text-black font-bold':'bg-red-500 text-black font-bold')) : 'bg-slate-800 text-slate-400'
+                        }`;
+                        btn.innerHTML = isSel ? '<i class="fas fa-check"></i>' : (t==='h'?'1':(t==='d'?'X':'2'));
+                    });
+                    // Atualizar barra de progresso
+                    const voteCount = Object.keys(data.votes).length;
+                    const progress = Math.round((voteCount / 14) * 100);
+                    const progressBar = document.getElementById('vote-progress-bar');
+                    const progressText = document.getElementById('vote-progress-text');
+                    if (progressBar) progressBar.style.width = progress + '%';
+                    if (progressText) progressText.textContent = voteCount + '/14';
+                } else {
+                    Router.render();
+                }
+            },
             submitVotes: () => {
                 if(!Auth.user) { Router.openModal('login'); return; }
                 const d = Store.getAppData();
@@ -1075,7 +1333,21 @@
                 Store.saveAppData(d);
                 Router.render();
             },
-            resetVotes: () => { localStorage.removeItem(Store.KEY_DATA); Router.render(); }
+            resetVotes: () => { localStorage.removeItem(Store.KEY_DATA); Router.render(); },
+            calcularPreco: () => {
+                const duplos = parseInt(document.getElementById('calc-duplos')?.value || '1');
+                const triplos = parseInt(document.getElementById('calc-triplos')?.value || '0');
+                const apostas = Math.pow(2, duplos) * Math.pow(3, triplos);
+                const valor = apostas * 2; // R$ 2,00 por aposta
+                const el = document.getElementById('calc-resultado');
+                if (el) {
+                    el.innerHTML = `
+                        <div class="text-xs text-slate-400 mb-1">Valor da Aposta</div>
+                        <div class="text-3xl font-black text-app-primary">R$ ${valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                        <div class="text-xs text-slate-500 mt-1">${apostas.toLocaleString('pt-BR')} apostas</div>
+                    `;
+                }
+            }
         };
 
         // ANÁLISE COM IA

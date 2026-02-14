@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Loteca Pro - A Casa do Lotequeiro</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <meta property="og:image" content="/logo-full.png">
     
     <!-- EXTERNAL LIBS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -91,16 +95,8 @@
 
     <!-- HEADER -->
     <header class="bg-app-surface/95 backdrop-blur-md fixed top-24 left-0 w-full z-40 border-b border-white/5 h-16 flex items-center justify-between px-6">
-        <button onclick="Router.navigate('home')" class="flex items-center gap-3 focus:outline-none text-left group">
-            <div class="bg-gradient-to-tr from-green-600 to-app-primary w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-green-500/20 group-hover:scale-105 transition-transform">
-                <i class="fas fa-trophy text-black text-sm"></i>
-            </div>
-            <div class="flex flex-col">
-                <h1 class="text-base font-bold tracking-tight leading-none text-white">
-                    LOTECA<span class="text-app-primary">PRO</span>
-                </h1>
-                <span class="text-[9px] text-slate-400 font-medium tracking-wide">A casa do lotequeiro profissional!</span>
-            </div>
+        <button onclick="Router.navigate('home')" class="flex items-center gap-2 focus:outline-none text-left group">
+            <img src="/logo-header.png" srcset="/logo-header-2x.png 2x" alt="Loteca Pro" class="h-10 object-contain group-hover:scale-105 transition-transform">
         </button>
         <div id="header-user-area" class="text-right"></div>
     </header>
@@ -2265,7 +2261,7 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                 printWindow.document.write('.info{display:flex;justify-content:space-around;margin:10px 0;font-size:12px}');
                 printWindow.document.write('.info div{text-align:center}.info .num{font-size:20px;font-weight:900}');
                 printWindow.document.write('</style></head><body>');
-                printWindow.document.write('<div class="header"><h1>🎯 LOTECA PRO</h1><h2>Concurso #' + Data.analysis.current.id + '</h2><p>A Casa do Lotequeiro Profissional</p></div>');
+                printWindow.document.write('<div class="header"><img src="/logo-full.png" style="max-height:50px;margin:0 auto 10px;display:block" alt="Loteca Pro"><h2>Concurso #' + Data.analysis.current.id + '</h2><p>A Casa do Lotequeiro Profissional</p></div>');
                 printWindow.document.write('<div class="info"><div><div class="num">' + numDuplos + '</div>Duplos</div><div><div class="num">' + numTriplos + '</div>Triplos</div><div><div class="num">' + numApostas + '</div>Apostas</div></div>');
                 printWindow.document.write('<table><tr><th>JG</th><th>MANDANTE</th><th>1</th><th>X</th><th>2</th><th>VISITANTE</th></tr>');
                 jogos.forEach(g => {

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /?page=admin
+
+Sitemap: https://loteca-pro-mateus-1767825041.web.app/sitemap.xml

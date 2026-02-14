@@ -3,11 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Loteca Pro - A Casa do Lotequeiro</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <meta property="og:image" content="/logo-full.png">
+    <title>Loteca Pro - A Casa do Lotequeiro | Palpites, Análise IA e Resultados</title>
+    
+    <!-- SEO META TAGS -->
+    <meta name="description" content="Loteca Pro - A plataforma mais completa para apostadores da Loteca. Análise com Inteligência Artificial, palpites da comunidade, mercado da bola, montador de jogos e muito mais. Grátis!">
+    <meta name="keywords" content="loteca, loteca pro, palpites loteca, análise loteca, loteria esportiva, caixa, concurso loteca, raio x ia, cartola fc, apostas esportivas">
+    <meta name="author" content="Loteca Pro">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Loteca Pro">
+    
+    <!-- OPEN GRAPH (Facebook/WhatsApp) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://loteca-pro-mateus-1767825041.web.app/">
+    <meta property="og:title" content="Loteca Pro - A Casa do Lotequeiro">
+    <meta property="og:description" content="Análise com IA, palpites da comunidade, mercado da bola e muito mais. A plataforma mais completa para apostadores da Loteca!">
+    <meta property="og:image" content="https://loteca-pro-mateus-1767825041.web.app/icons/icon-512.png">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="Loteca Pro">
+    
+    <!-- TWITTER CARD -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Loteca Pro - A Casa do Lotequeiro">
+    <meta name="twitter:description" content="Análise com IA, palpites da comunidade, mercado da bola e muito mais.">
+    <meta name="twitter:image" content="https://loteca-pro-mateus-1767825041.web.app/icons/icon-512.png">
+    
+    <!-- FAVICON & ICONS -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+    
+    <!-- PWA MANIFEST -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- CANONICAL URL -->
+    <link rel="canonical" href="https://loteca-pro-mateus-1767825041.web.app/">
+    
+    <!-- STRUCTURED DATA (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Loteca Pro",
+        "description": "Plataforma de análise e palpites para a Loteca - Loteria Esportiva da Caixa",
+        "url": "https://loteca-pro-mateus-1767825041.web.app/",
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "BRL"
+        }
+    }
+    </script>
+    
+    <!-- ADSENSE PLACEHOLDER (substituir pelo seu ID quando aprovado) -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
     
     <!-- EXTERNAL LIBS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1570,7 +1624,145 @@
                         </div>
                     </div>
                 </div>
-            `
+             `,
+            // ============ VIEWS: SOBRE NÓS ============
+            Sobre: () => {
+                return `
+                <div class="space-y-6 pb-20">
+                    <div class="bg-gradient-to-r from-app-primary/20 to-blue-500/20 rounded-2xl p-6">
+                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-info-circle text-app-primary mr-2"></i>Sobre o Loteca Pro</h2>
+                        <p class="text-slate-300 text-sm">Conheça a plataforma que está revolucionando a forma de apostar na Loteca</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-4">
+                        <h3 class="text-lg font-bold text-white">Quem Somos</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">O <strong class="text-app-primary">Loteca Pro</strong> é uma plataforma independente de análise e informação sobre a Loteca, a loteria esportiva da Caixa Econômica Federal. Nosso objetivo é oferecer aos apostadores as ferramentas mais avançadas para tomar decisões informadas.</p>
+                        <p class="text-slate-300 text-sm leading-relaxed">Utilizamos <strong class="text-purple-400">Inteligência Artificial (Gemini)</strong> para analisar cada jogo do concurso, considerando forma recente, histórico de confrontos, notícias de mercado, lesões e outros fatores relevantes.</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-4">
+                        <h3 class="text-lg font-bold text-white">Nossas Funcionalidades</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white/5 rounded-lg p-3"><i class="fas fa-microchip text-purple-400 mr-2"></i><span class="text-sm text-slate-300">Raio X com IA</span></div>
+                            <div class="bg-white/5 rounded-lg p-3"><i class="fas fa-pen-to-square text-blue-400 mr-2"></i><span class="text-sm text-slate-300">Palpites da Comunidade</span></div>
+                            <div class="bg-white/5 rounded-lg p-3"><i class="fas fa-exchange-alt text-green-400 mr-2"></i><span class="text-sm text-slate-300">Mercado da Bola</span></div>
+                            <div class="bg-white/5 rounded-lg p-3"><i class="fas fa-gamepad text-yellow-400 mr-2"></i><span class="text-sm text-slate-300">Monte seu Jogo</span></div>
+                            <div class="bg-white/5 rounded-lg p-3"><i class="fas fa-futbol text-orange-400 mr-2"></i><span class="text-sm text-slate-300">Parciais Cartola</span></div>
+                            <div class="bg-white/5 rounded-lg p-3"><i class="fas fa-medal text-amber-400 mr-2"></i><span class="text-sm text-slate-300">Ranking de Acertos</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-4">
+                        <h3 class="text-lg font-bold text-white">Aviso Legal</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">O Loteca Pro é um serviço <strong class="text-white">independente e informativo</strong>. Não somos uma casa de apostas e não vendemos bilhetes de loteria. Não temos nenhum vínculo oficial com a Caixa Econômica Federal.</p>
+                        <p class="text-slate-300 text-sm leading-relaxed">As análises e palpites fornecidos são baseados em dados estatísticos e inteligência artificial, e não garantem resultados. Aposte com responsabilidade.</p>
+                    </div>
+                    <div class="text-center text-xs text-slate-500 pt-4">
+                        <p>Loteca Pro &copy; 2025-2026. Todos os direitos reservados.</p>
+                        <div class="flex justify-center gap-4 mt-2">
+                            <a onclick="Router.navigate('privacidade')" class="text-app-primary hover:underline cursor-pointer">Privacidade</a>
+                            <a onclick="Router.navigate('termos')" class="text-app-primary hover:underline cursor-pointer">Termos de Uso</a>
+                            <a onclick="Router.navigate('contato')" class="text-app-primary hover:underline cursor-pointer">Contato</a>
+                        </div>
+                    </div>
+                </div>`;
+            },
+
+            // ============ VIEWS: POLÍTICA DE PRIVACIDADE ============
+            Privacidade: () => {
+                return `
+                <div class="space-y-6 pb-20">
+                    <div class="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl p-6">
+                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-shield-alt text-blue-400 mr-2"></i>Política de Privacidade</h2>
+                        <p class="text-slate-300 text-sm">Última atualização: 14 de fevereiro de 2026</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-5">
+                        <div><h3 class="text-lg font-bold text-white mb-2">1. Informações que Coletamos</h3><p class="text-slate-300 text-sm leading-relaxed">O Loteca Pro coleta informações mínimas necessárias para o funcionamento da plataforma: endereço de e-mail (caso faça login), palpites e votos enviados, dados de navegação anônimos para melhoria do serviço.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">2. Como Usamos suas Informações</h3><p class="text-slate-300 text-sm leading-relaxed">Suas informações são utilizadas exclusivamente para personalizar sua experiência, gerar estatísticas agregadas de palpites da comunidade, melhorar nossos serviços e enviar notificações relevantes (se autorizado).</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">3. Compartilhamento de Dados</h3><p class="text-slate-300 text-sm leading-relaxed">Não vendemos, alugamos ou compartilhamos suas informações pessoais com terceiros para fins de marketing. Podemos compartilhar dados agregados e anônimos para fins estatísticos.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">4. Cookies e Tecnologias</h3><p class="text-slate-300 text-sm leading-relaxed">Utilizamos cookies e tecnologias similares para melhorar a experiência do usuário, lembrar preferências e analisar o tráfego. Parceiros de publicidade podem utilizar cookies para exibir anúncios relevantes.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">5. Segurança</h3><p class="text-slate-300 text-sm leading-relaxed">Utilizamos o Firebase (Google Cloud) para armazenamento de dados, que oferece criptografia em trânsito e em repouso.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">6. Seus Direitos (LGPD)</h3><p class="text-slate-300 text-sm leading-relaxed">Em conformidade com a LGPD, você tem direito a acessar, corrigir, excluir seus dados e revogar o consentimento a qualquer momento. Entre em contato para exercer esses direitos.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">7. Contato</h3><p class="text-slate-300 text-sm leading-relaxed">Para questões sobre privacidade: <strong class="text-app-primary">contato@lotecapro.com.br</strong></p></div>
+                    </div>
+                </div>`;
+            },
+
+            // ============ VIEWS: TERMOS DE USO ============
+            Termos: () => {
+                return `
+                <div class="space-y-6 pb-20">
+                    <div class="bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-2xl p-6">
+                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-file-contract text-amber-400 mr-2"></i>Termos de Uso</h2>
+                        <p class="text-slate-300 text-sm">Última atualização: 14 de fevereiro de 2026</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-5">
+                        <div><h3 class="text-lg font-bold text-white mb-2">1. Aceitação dos Termos</h3><p class="text-slate-300 text-sm leading-relaxed">Ao acessar e utilizar o Loteca Pro, você concorda com estes Termos de Uso.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">2. Descrição do Serviço</h3><p class="text-slate-300 text-sm leading-relaxed">O Loteca Pro é uma plataforma informativa e de análise sobre a Loteca (Loteria Esportiva da Caixa). Oferecemos análises estatísticas, palpites por IA, enquetes da comunidade e ferramentas auxiliares.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">3. Isenção de Responsabilidade</h3><p class="text-slate-300 text-sm leading-relaxed"><strong class="text-amber-400">IMPORTANTE:</strong> O Loteca Pro NÃO é uma casa de apostas. Não vendemos bilhetes e não temos vínculo com a Caixa Econômica Federal. As análises são meramente informativas e não garantem resultado. O usuário é inteiramente responsável por suas decisões de aposta.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">4. Uso Adequado</h3><p class="text-slate-300 text-sm leading-relaxed">Você concorda em utilizar o serviço apenas para fins pessoais e não comerciais. É proibido reproduzir conteúdo sem autorização ou utilizar bots automatizados.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">5. Propriedade Intelectual</h3><p class="text-slate-300 text-sm leading-relaxed">Todo o conteúdo do Loteca Pro é de propriedade exclusiva da plataforma e está protegido pelas leis de propriedade intelectual brasileiras.</p></div>
+                        <div><h3 class="text-lg font-bold text-white mb-2">6. Jogo Responsável</h3><p class="text-slate-300 text-sm leading-relaxed">Incentivamos o jogo responsável. Aposte apenas o que pode perder. Se precisar de ajuda, ligue para o CVV: 188.</p></div>
+                    </div>
+                </div>`;
+            },
+
+            // ============ VIEWS: CONTATO ============
+            Contato: () => {
+                return `
+                <div class="space-y-6 pb-20">
+                    <div class="bg-gradient-to-r from-green-500/20 to-teal-500/20 rounded-2xl p-6">
+                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-envelope text-green-400 mr-2"></i>Contato</h2>
+                        <p class="text-slate-300 text-sm">Fale conosco! Estamos sempre abertos a sugestões e feedback.</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-4">
+                        <h3 class="text-lg font-bold text-white">Canais de Contato</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-4 bg-white/5 rounded-lg p-4"><div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center"><i class="fas fa-envelope text-blue-400"></i></div><div><p class="text-white font-bold text-sm">E-mail</p><p class="text-app-primary text-sm">contato@lotecapro.com.br</p></div></div>
+                            <div class="flex items-center gap-4 bg-white/5 rounded-lg p-4"><div class="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center"><i class="fab fa-whatsapp text-green-400"></i></div><div><p class="text-white font-bold text-sm">WhatsApp</p><p class="text-slate-300 text-sm">Em breve</p></div></div>
+                            <div class="flex items-center gap-4 bg-white/5 rounded-lg p-4"><div class="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center"><i class="fab fa-instagram text-purple-400"></i></div><div><p class="text-white font-bold text-sm">Instagram</p><p class="text-slate-300 text-sm">@lotecapro (em breve)</p></div></div>
+                            <div class="flex items-center gap-4 bg-white/5 rounded-lg p-4"><div class="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center"><i class="fab fa-telegram text-blue-500"></i></div><div><p class="text-white font-bold text-sm">Telegram</p><p class="text-slate-300 text-sm">Grupo da Comunidade (em breve)</p></div></div>
+                        </div>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6 space-y-4">
+                        <h3 class="text-lg font-bold text-white">Envie uma Mensagem</h3>
+                        <div class="space-y-3">
+                            <input id="contato-nome" type="text" placeholder="Seu nome" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-app-primary">
+                            <input id="contato-email" type="email" placeholder="Seu e-mail" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-app-primary">
+                            <select id="contato-assunto" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-app-primary"><option value='' class='bg-app-surface'>Selecione o assunto</option><option value='sugestao' class='bg-app-surface'>Sugestão</option><option value='bug' class='bg-app-surface'>Reportar Bug</option><option value='parceria' class='bg-app-surface'>Parceria / Afiliado</option><option value='outro' class='bg-app-surface'>Outro</option></select>
+                            <textarea id="contato-msg" rows="4" placeholder="Sua mensagem..." class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-app-primary resize-none"></textarea>
+                            <button onclick="ContatoActions.enviar()" class="w-full bg-app-primary text-black font-bold py-3 rounded-lg hover:bg-green-300 transition-all"><i class="fas fa-paper-plane mr-2"></i>Enviar Mensagem</button>
+                        </div>
+                    </div>
+                </div>`;
+            },
+
+            // ============ VIEWS: PREMIUM ============
+            Premium: () => {
+                return `
+                <div class="space-y-6 pb-20">
+                    <div class="bg-gradient-to-r from-amber-500/30 to-yellow-500/30 rounded-2xl p-6 text-center">
+                        <div class="text-4xl mb-3">👑</div>
+                        <h2 class="text-2xl font-black text-white mb-2">Loteca Pro <span class="text-amber-400">Premium</span></h2>
+                        <p class="text-slate-300 text-sm">Desbloqueie todo o potencial da plataforma</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6">
+                        <div class="text-center mb-6"><span class="text-4xl font-black text-white">R$ 9<span class="text-xl">,90</span></span><span class="text-slate-400 text-sm">/mês</span></div>
+                        <div class="space-y-3 mb-6">
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Raio X IA Avançado com sugestões de duplos/triplos</span></div>
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Alertas de mercado em tempo real</span></div>
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Histórico completo de concursos anteriores</span></div>
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Estatísticas avançadas por time e campeonato</span></div>
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Navegação sem anúncios</span></div>
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Badge exclusivo no ranking</span></div>
+                            <div class="flex items-center gap-3"><i class="fas fa-check-circle text-app-primary"></i><span class="text-slate-300 text-sm">Acesso antecipado a novas funcionalidades</span></div>
+                        </div>
+                        <button class="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-bold py-4 rounded-xl text-lg"><i class="fas fa-crown mr-2"></i>Em Breve - Assinar Premium</button>
+                        <p class="text-center text-xs text-slate-500 mt-3">Pagamento seguro via Pix ou cartão. Cancele quando quiser.</p>
+                    </div>
+                    <div class="bg-app-surface rounded-xl p-6">
+                        <h3 class="text-lg font-bold text-white mb-4">Comparação de Planos</h3>
+                        <table class="w-full text-sm"><thead><tr class="border-b border-white/10"><th class="text-left text-slate-400 py-2 pr-4">Funcionalidade</th><th class="text-center text-slate-400 py-2 px-3">Grátis</th><th class="text-center text-amber-400 py-2 px-3">Premium</th></tr></thead><tbody class="text-slate-300"><tr class="border-b border-white/5"><td class="py-2 pr-4">Raio X IA (básico)</td><td class="text-center"><i class="fas fa-check text-green-400"></i></td><td class="text-center"><i class="fas fa-check text-green-400"></i></td></tr><tr class="border-b border-white/5"><td class="py-2 pr-4">Raio X IA (avançado)</td><td class="text-center"><i class="fas fa-lock text-slate-600"></i></td><td class="text-center"><i class="fas fa-check text-green-400"></i></td></tr><tr class="border-b border-white/5"><td class="py-2 pr-4">Palpites da Comunidade</td><td class="text-center"><i class="fas fa-check text-green-400"></i></td><td class="text-center"><i class="fas fa-check text-green-400"></i></td></tr><tr class="border-b border-white/5"><td class="py-2 pr-4">Monte seu Jogo</td><td class="text-center"><i class="fas fa-check text-green-400"></i></td><td class="text-center"><i class="fas fa-check text-green-400"></i></td></tr><tr class="border-b border-white/5"><td class="py-2 pr-4">Sem anúncios</td><td class="text-center"><i class="fas fa-lock text-slate-600"></i></td><td class="text-center"><i class="fas fa-check text-green-400"></i></td></tr><tr><td class="py-2 pr-4">Badge exclusivo</td><td class="text-center"><i class="fas fa-lock text-slate-600"></i></td><td class="text-center"><i class="fas fa-check text-green-400"></i></td></tr></tbody></table>
+                    </div>
+                </div>`;
+            }
         };
 
         // --- ROUTER ---
@@ -1614,6 +1806,11 @@
                     case 'montador': main.innerHTML = Views.Montador(); break;
                     case 'cartola': main.innerHTML = Views.Cartola(); if (!Data._cartolaData && !Data._cartolaLoading) setTimeout(() => CartolaActions.carregar(), 100); break;
                     case 'ranking': main.innerHTML = Views.Ranking(); break;
+                    case 'sobre': main.innerHTML = Views.Sobre(); break;
+                    case 'privacidade': main.innerHTML = Views.Privacidade(); break;
+                    case 'termos': main.innerHTML = Views.Termos(); break;
+                    case 'contato': main.innerHTML = Views.Contato(); break;
+                    case 'premium': main.innerHTML = Views.Premium(); break;
                     case 'admin': main.innerHTML = Views.Admin(); setTimeout(() => { AdminActions.carregarAlertas(); AdminActions.carregarConcursosParaRegen(); }, 500); break;
                 }
                 if(State.modal === 'login') {
@@ -3084,6 +3281,34 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
             }
         };
 
+        // ============ CONTATO ACTIONS ============
+        const ContatoActions = {
+            enviar: async () => {
+                const nome = document.getElementById('contato-nome')?.value?.trim();
+                const email = document.getElementById('contato-email')?.value?.trim();
+                const assunto = document.getElementById('contato-assunto')?.value;
+                const msg = document.getElementById('contato-msg')?.value?.trim();
+                if (!nome || !email || !msg) { alert('Preencha todos os campos obrigatórios.'); return; }
+                try {
+                    await firebase.firestore().collection('contatos').add({ nome, email, assunto, mensagem: msg, data: new Date().toISOString(), lido: false });
+                    alert('Mensagem enviada com sucesso! Obrigado pelo contato.');
+                    document.getElementById('contato-nome').value = '';
+                    document.getElementById('contato-email').value = '';
+                    document.getElementById('contato-assunto').value = '';
+                    document.getElementById('contato-msg').value = '';
+                } catch (e) { alert('Erro ao enviar mensagem. Tente novamente.'); console.error(e); }
+            }
+        };
+
+        // ============ AD SLOTS (placeholder para AdSense/AdMob) ============
+        const AdSlots = {
+            banner: (position) => `<div class="ad-slot ad-${position} my-4 flex items-center justify-center bg-white/3 rounded-lg border border-dashed border-white/10 min-h-[90px] text-slate-600 text-xs" data-ad-slot="${position}"></div>`,
+            rewardedVideo: {
+                isReady: false,
+                show: (callback) => { console.log('[AdMob] Rewarded video placeholder. Liberando acesso...'); callback(true); }
+            }
+        };
+
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
@@ -3105,6 +3330,30 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                 }, 1000);
             }
         });
+    </script>
+    
+    <!-- FOOTER LEGAL (visível em todas as páginas) -->
+    <div id="app-footer" class="fixed bottom-0 left-0 right-0 bg-app-bg border-t border-white/5 py-2 px-4 text-center z-30" style="display:none;">
+        <div class="flex justify-center items-center gap-3 text-[10px] text-slate-500">
+            <a onclick="Router.navigate('sobre')" class="hover:text-app-primary cursor-pointer">Sobre</a>
+            <span>|</span>
+            <a onclick="Router.navigate('privacidade')" class="hover:text-app-primary cursor-pointer">Privacidade</a>
+            <span>|</span>
+            <a onclick="Router.navigate('termos')" class="hover:text-app-primary cursor-pointer">Termos</a>
+            <span>|</span>
+            <a onclick="Router.navigate('contato')" class="hover:text-app-primary cursor-pointer">Contato</a>
+            <span>|</span>
+            <a onclick="Router.navigate('premium')" class="hover:text-amber-400 cursor-pointer text-amber-500 font-bold">👑 Premium</a>
+        </div>
+    </div>
+    
+    <script>
+        // Mostrar footer após carregamento
+        setTimeout(() => { const f = document.getElementById('app-footer'); if(f) f.style.display = 'block'; }, 2000);
+        // Registrar Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(r => console.log('SW registrado:', r.scope)).catch(e => console.log('SW erro:', e));
+        }
     </script>
 </body>
 </html>

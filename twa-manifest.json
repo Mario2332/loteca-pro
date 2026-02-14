@@ -1,0 +1,49 @@
+{
+  "packageId": "com.lotecapro.app",
+  "host": "loteca-pro-mateus-1767825041.web.app",
+  "name": "Loteca Pro",
+  "launcherName": "Loteca Pro",
+  "display": "standalone",
+  "themeColor": "#0f172a",
+  "navigationColor": "#0f172a",
+  "navigationColorDark": "#0f172a",
+  "navigationDividerColor": "#0f172a",
+  "navigationDividerColorDark": "#0f172a",
+  "backgroundColor": "#0f172a",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://loteca-pro-mateus-1767825041.web.app/icons/icon-512.png",
+  "maskableIconUrl": "https://loteca-pro-mateus-1767825041.web.app/icons/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "loteca-pro.keystore",
+    "alias": "loteca-pro"
+  },
+  "appVersionCode": 1,
+  "appVersionName": "1.0.0",
+  "shortcuts": [
+    {
+      "name": "Raio X IA",
+      "shortName": "Raio X",
+      "url": "/?page=ai-xray",
+      "chosenIconUrl": "https://loteca-pro-mateus-1767825041.web.app/icons/icon-96.png"
+    },
+    {
+      "name": "Monte seu Jogo",
+      "shortName": "Montador",
+      "url": "/?page=montador",
+      "chosenIconUrl": "https://loteca-pro-mateus-1767825041.web.app/icons/icon-96.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://loteca-pro-mateus-1767825041.web.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://loteca-pro-mateus-1767825041.web.app/",
+  "minSdkVersion": 19,
+  "orientation": "portrait",
+  "fingerprints": []
+}

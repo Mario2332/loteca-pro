@@ -1225,3 +1225,46 @@ REGRAS OBRIGATORIAS:
 - NAO use markdown, apenas texto corrido dentro do JSON
 - Responda APENAS com o JSON, sem texto antes ou depois`;
 }
+
+
+// ============================================================
+// CARTOLA FC - Proxy para API do Cartola (evita CORS)
+// ============================================================
+
+exports.cartolaProxy = onRequest({cors: true, timeoutSeconds: 30, memory: '128MiB'}, async (req, res) => {
+  try {
+    const { endpoint } = req.body || {};
+    const validEndpoints = [
+      'mercado/status',
+      'atletas/pontuados',
+      'partidas',
+      'mercado/destaques',
+      'pos-rodada/destaques'
+    ];
+    
+    const ep = endpoint || 'mercado/status';
+    if (!validEndpoints.includes(ep)) {
+      return res.status(400).json({ success: false, error: 'Endpoint invalido' });
+    }
+    
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch(`https://api.cartola.globo.com/${ep}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Origin': 'https://cartola.globo.com',
+        'Referer': 'https://cartola.globo.com/'
+      }
+    });
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ success: false, error: `API Cartola retornou ${response.status}` });
+    }
+    
+    const data = await response.json();
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('Erro no proxy Cartola:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});

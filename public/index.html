@@ -608,85 +608,130 @@
                 const isSubmitted = data.submitted;
                 const voteCount = Object.keys(data.votes).length;
                 const progress = Math.round((voteCount / 14) * 100);
-                return `
-                    <div class="animate-fade-in pb-20">
-                        <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl mb-6">
-                            <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-pen-to-square text-app-primary mr-2"></i>Seus Palpites - Concurso #${Data.analysis.current.id}</h2>
-                            <p class="text-sm text-slate-300 mb-4">Preencha todos os 14 jogos e veja como os outros usuários votaram!</p>
-                            <div class="flex gap-3">
-                                <button onclick="Router.navigate('ranking')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg py-3 text-xs font-bold text-white transition-all flex items-center justify-center gap-2">
-                                    <i class="fas fa-trophy"></i> VER RANKING
-                                </button>
-                                <button onclick="Router.navigate('ai-xray')" class="flex-1 bg-app-ai/20 hover:bg-app-ai/30 border border-app-ai/30 rounded-lg py-3 text-xs font-bold text-app-ai transition-all flex items-center justify-center gap-2">
-                                    <i class="fas fa-microchip"></i> RAIO X IA
-                                </button>
-                            </div>
-                        </div>
-                        ${!isSubmitted ? `
-                            <div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg">
-                                <div class="flex justify-between text-xs text-slate-300 mb-1"><span>Progresso</span><span id="vote-progress-text" class="font-bold text-app-primary">${voteCount}/14</span></div>
-                                <div class="h-2 bg-black/40 rounded-full overflow-hidden"><div id="vote-progress-bar" class="h-full bg-gradient-to-r from-green-600 to-app-primary transition-all duration-500" style="width: ${progress}%"></div></div>
-                            </div>
-                        ` : `<div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg flex items-center gap-3 border-l-4 border-app-primary"><div class="w-10 h-10 rounded-full bg-app-primary/20 flex items-center justify-center text-app-primary"><i class="fas fa-check text-xl"></i></div><div><h3 class="text-sm font-bold text-white">Enviado!</h3><p class="text-[10px] text-slate-300">Veja como os outros usuários votaram.</p></div><button onclick="Actions.resetVotes()" class="ml-auto text-[10px] text-slate-500 underline">Refazer</button></div>`}
-                        <div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden shadow-xl">
-                            ${Data.games.map(g => {
-                                const vote = data.votes[g.id];
-                                if (!isSubmitted) {
-                                    const renderCell = (type, label) => {
-                                        const isSel = vote === type;
-                                        let cls = isSel ? (type==='h'?'bg-green-500 text-black font-bold':(type==='d'?'bg-yellow-500 text-black font-bold':'bg-red-500 text-black font-bold')) : "bg-slate-800 text-slate-400";
-                                        return `<button data-vote-type="${type}" onclick="Actions.vote(${g.id}, '${type}')" class="h-9 w-full rounded flex items-center justify-center text-xs transition-all ${cls} hover:scale-105">${isSel?'<i class="fas fa-check"></i>':label}</button>`;
-                                    };
-                                    return `<div data-game-id="${g.id}" class="grid grid-cols-12 gap-2 border-b border-white/5 items-center py-3 px-3"><div class="col-span-1 text-center text-xs font-bold text-slate-500">${g.id}</div><div class="col-span-4 text-right text-xs font-bold text-white truncate pr-2">${g.home.name}</div><div class="col-span-1">${renderCell('h','1')}</div><div class="col-span-1">${renderCell('d','X')}</div><div class="col-span-1">${renderCell('a','2')}</div><div class="col-span-4 text-left text-xs font-bold text-white truncate pl-2">${g.away.name}</div></div>`;
-                                } else {
+                
+                // Classificação de percentual estilo Vovoteca
+                const getPercClass = (perc) => {
+                    if (perc >= 81) return 'bg-blue-600 text-white'; // Super favorito
+                    if (perc >= 51) return 'bg-blue-400 text-white'; // Favorito
+                    if (perc >= 26) return 'bg-green-500 text-white'; // Normal
+                    if (perc >= 13) return 'bg-yellow-500 text-black'; // Surpresa
+                    return 'bg-red-500 text-white'; // Zebra
+                };
+                const getPercLabel = (perc) => {
+                    if (perc >= 81) return 'S.F.';
+                    if (perc >= 51) return 'FAV';
+                    if (perc >= 26) return 'N';
+                    if (perc >= 13) return 'SUR';
+                    return 'ZEB';
+                };
+                
+                return '<div class="animate-fade-in pb-20">' +
+                    '<div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl mb-6">' +
+                        '<h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-pen-to-square text-app-primary mr-2"></i>Palpites - Concurso #' + Data.analysis.current.id + '</h2>' +
+                        '<p class="text-sm text-slate-300 mb-4">Preencha os 14 jogos e compare com a comunidade!</p>' +
+                        '<div class="flex gap-3">' +
+                            '<button onclick="Router.navigate(\'ranking\')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg py-3 text-xs font-bold text-white transition-all flex items-center justify-center gap-2"><i class="fas fa-trophy"></i> RANKING</button>' +
+                            '<button onclick="Router.navigate(\'montador\')" class="flex-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 rounded-lg py-3 text-xs font-bold text-amber-400 transition-all flex items-center justify-center gap-2"><i class="fas fa-gamepad"></i> MONTADOR</button>' +
+                        '</div>' +
+                    '</div>' +
+                    
+                    // Progress bar ou status de envio
+                    (!isSubmitted ? 
+                        '<div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg">' +
+                            '<div class="flex justify-between text-xs text-slate-300 mb-1"><span>Progresso</span><span id="vote-progress-text" class="font-bold text-app-primary">' + voteCount + '/14</span></div>' +
+                            '<div class="h-2 bg-black/40 rounded-full overflow-hidden"><div id="vote-progress-bar" class="h-full bg-gradient-to-r from-green-600 to-app-primary transition-all duration-500" style="width: ' + progress + '%"></div></div>' +
+                        '</div>'
+                    : 
+                        '<div class="bg-app-surface p-4 rounded-xl border border-white/5 mb-4 shadow-lg">' +
+                            '<div class="flex items-center gap-3 border-l-4 border-app-primary pl-3">' +
+                                '<div class="w-10 h-10 rounded-full bg-app-primary/20 flex items-center justify-center text-app-primary"><i class="fas fa-check text-xl"></i></div>' +
+                                '<div class="flex-1"><h3 class="text-sm font-bold text-white">Palpites Enviados!</h3><p class="text-[10px] text-slate-300">Compare seus palpites com a comunidade abaixo.</p></div>' +
+                                '<button onclick="Actions.resetVotes()" class="text-[10px] text-slate-500 underline">Refazer</button>' +
+                            '</div>' +
+                            // Legenda de cores
+                            '<div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-white/5">' +
+                                '<span class="text-[9px] text-slate-500">Legenda:</span>' +
+                                '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white">ZEB 0-12%</span>' +
+                                '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-500 text-black">SUR 13-25%</span>' +
+                                '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-500 text-white">N 26-50%</span>' +
+                                '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-400 text-white">FAV 51-80%</span>' +
+                                '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white">S.F. 81%+</span>' +
+                            '</div>' +
+                        '</div>'
+                    ) +
+                    
+                    // Grid de jogos
+                    '<div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden shadow-xl">' +
+                        // Header da tabela (quando submitted)
+                        (isSubmitted ? '<div class="grid grid-cols-12 gap-1 px-3 py-2 bg-black/30 border-b border-white/10"><div class="col-span-1 text-center text-[9px] font-bold text-slate-500">JG</div><div class="col-span-3 text-right text-[9px] font-bold text-slate-500">MANDANTE</div><div class="col-span-1 text-center text-[9px] font-bold text-green-400">1</div><div class="col-span-1 text-center text-[9px] font-bold text-yellow-400">X</div><div class="col-span-1 text-center text-[9px] font-bold text-red-400">2</div><div class="col-span-3 text-left text-[9px] font-bold text-slate-500">VISITANTE</div><div class="col-span-2 text-center text-[9px] font-bold text-slate-500">SEU</div></div>' : '') +
+                        
+                        Data.games.map(g => {
+                            const vote = data.votes[g.id];
+                            if (!isSubmitted) {
+                                const renderCell = (type, label) => {
+                                    const isSel = vote === type;
+                                    let cls = isSel ? (type==='h'?'bg-green-500 text-black font-bold':(type==='d'?'bg-yellow-500 text-black font-bold':'bg-red-500 text-black font-bold')) : 'bg-slate-800 text-slate-400';
+                                    return '<button data-vote-type="' + type + '" onclick="Actions.vote(' + g.id + ', \'' + type + '\')" class="h-9 w-full rounded flex items-center justify-center text-xs transition-all ' + cls + ' hover:scale-105">' + (isSel?'<i class="fas fa-check"></i>':label) + '</button>';
+                                };
+                                return '<div data-game-id="' + g.id + '" class="grid grid-cols-12 gap-2 border-b border-white/5 items-center py-3 px-3"><div class="col-span-1 text-center text-xs font-bold text-slate-500">' + g.id + '</div><div class="col-span-4 text-right text-xs font-bold text-white truncate pr-2">' + g.home.name + '</div><div class="col-span-1">' + renderCell('h','1') + '</div><div class="col-span-1">' + renderCell('d','X') + '</div><div class="col-span-1">' + renderCell('a','2') + '</div><div class="col-span-4 text-left text-xs font-bold text-white truncate pl-2">' + g.away.name + '</div></div>';
+                            } else {
+                                // Modo enquete - mostrar percentuais coloridos
+                                const total = g.comm.h + g.comm.d + g.comm.a;
+                                const percH = total > 0 ? Math.round((g.comm.h / total) * 100) : 33;
+                                const percD = total > 0 ? Math.round((g.comm.d / total) * 100) : 34;
+                                const percA = total > 0 ? 100 - percH - percD : 33;
+                                
+                                const voteLabel = vote === 'h' ? '1' : (vote === 'd' ? 'X' : '2');
+                                const voteColor = vote === 'h' ? 'text-green-400' : (vote === 'd' ? 'text-yellow-400' : 'text-red-400');
+                                
+                                // Verificar se o palpite do usuário é o favorito
+                                const maxPerc = Math.max(percH, percD, percA);
+                                const userPerc = vote === 'h' ? percH : (vote === 'd' ? percD : percA);
+                                const isContrarian = userPerc < 26; // Palpite contra a maioria
+                                
+                                return '<div class="grid grid-cols-12 gap-1 border-b border-white/5 items-center py-2.5 px-3 ' + (isContrarian ? 'bg-red-500/5' : '') + '">' +
+                                    '<div class="col-span-1 text-center text-[10px] font-bold text-slate-500">' + g.id + '</div>' +
+                                    '<div class="col-span-3 text-right text-[10px] font-bold text-white truncate pr-1">' + g.home.name + '</div>' +
+                                    '<div class="col-span-1 text-center"><span class="inline-block w-full px-0.5 py-1 rounded text-[10px] font-black ' + getPercClass(percH) + '">' + percH + '%</span></div>' +
+                                    '<div class="col-span-1 text-center"><span class="inline-block w-full px-0.5 py-1 rounded text-[10px] font-black ' + getPercClass(percD) + '">' + percD + '%</span></div>' +
+                                    '<div class="col-span-1 text-center"><span class="inline-block w-full px-0.5 py-1 rounded text-[10px] font-black ' + getPercClass(percA) + '">' + percA + '%</span></div>' +
+                                    '<div class="col-span-3 text-left text-[10px] font-bold text-white truncate pl-1">' + g.away.name + '</div>' +
+                                    '<div class="col-span-2 text-center"><span class="text-sm font-black ' + voteColor + '">' + voteLabel + '</span>' + (isContrarian ? '<i class="fas fa-bolt text-amber-400 text-[8px] ml-0.5" title="Palpite ousado!"></i>' : '') + '</div>' +
+                                '</div>';
+                            }
+                        }).join('') +
+                    '</div>' +
+                    
+                    // Resumo da comparação (quando submitted)
+                    (isSubmitted ? '<div class="bg-app-surface p-4 rounded-xl border border-white/5 mt-4">' +
+                        '<h4 class="text-xs font-bold text-slate-400 mb-3"><i class="fas fa-chart-bar mr-1"></i>Resumo da sua aposta vs Comunidade</h4>' +
+                        '<div class="grid grid-cols-3 gap-3">' +
+                            (() => {
+                                let comMaioria = 0, contraMaioria = 0, neutro = 0;
+                                Data.games.forEach(g => {
+                                    const v = data.votes[g.id];
                                     const total = g.comm.h + g.comm.d + g.comm.a;
-                                    const percH = Math.round((g.comm.h / total) * 100);
-                                    const percD = Math.round((g.comm.d / total) * 100);
-                                    const percA = Math.round((g.comm.a / total) * 100);
-                                    return `
-                                        <div class="border-b border-white/5 p-4">
-                                            <div class="flex items-center justify-between mb-3">
-                                                <div class="flex-1">
-                                                    <div class="text-xs text-slate-500 mb-1">${g.tour} • ${g.date}</div>
-                                                    <div class="text-sm font-bold text-white">${g.home.name} <span class="text-slate-500">vs</span> ${g.away.name}</div>
-                                                </div>
-                                            </div>
-                                            <div class="space-y-2">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs font-bold w-16 ${vote === 'h' ? 'text-app-primary' : 'text-slate-400'}">CASA</span>
-                                                    <div class="flex-1 bg-black/40 rounded-full h-6 overflow-hidden relative">
-                                                        <div class="absolute inset-0 bg-gradient-to-r from-green-600 to-green-400" style="width: ${percH}%"></div>
-                                                        <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">${percH}%</span>
-                                                    </div>
-                                                    ${vote === 'h' ? '<i class="fas fa-check-circle text-app-primary"></i>' : ''}
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs font-bold w-16 ${vote === 'd' ? 'text-app-primary' : 'text-slate-400'}">EMPATE</span>
-                                                    <div class="flex-1 bg-black/40 rounded-full h-6 overflow-hidden relative">
-                                                        <div class="absolute inset-0 bg-gradient-to-r from-yellow-600 to-yellow-400" style="width: ${percD}%"></div>
-                                                        <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">${percD}%</span>
-                                                    </div>
-                                                    ${vote === 'd' ? '<i class="fas fa-check-circle text-app-primary"></i>' : ''}
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs font-bold w-16 ${vote === 'a' ? 'text-app-primary' : 'text-slate-400'}">FORA</span>
-                                                    <div class="flex-1 bg-black/40 rounded-full h-6 overflow-hidden relative">
-                                                        <div class="absolute inset-0 bg-gradient-to-r from-red-600 to-red-400" style="width: ${percA}%"></div>
-                                                        <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">${percA}%</span>
-                                                    </div>
-                                                    ${vote === 'a' ? '<i class="fas fa-check-circle text-app-primary"></i>' : ''}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }
-                            }).join('')}
-                        </div>
-                        ${!isSubmitted ? `<div class="mt-6"><button onclick="Actions.submitVotes()" class="w-full bg-app-primary text-black font-bold py-4 rounded-xl shadow-xl text-sm">ENVIAR PALPITES</button></div>` : ''}
-                    </div>
-                `;
+                                    const percH = total > 0 ? Math.round((g.comm.h / total) * 100) : 33;
+                                    const percD = total > 0 ? Math.round((g.comm.d / total) * 100) : 34;
+                                    const percA = total > 0 ? 100 - percH - percD : 33;
+                                    const userPerc = v === 'h' ? percH : (v === 'd' ? percD : percA);
+                                    if (userPerc >= 51) comMaioria++;
+                                    else if (userPerc < 26) contraMaioria++;
+                                    else neutro++;
+                                });
+                                return '<div class="bg-green-500/10 p-3 rounded-lg text-center"><div class="text-2xl font-black text-green-400">' + comMaioria + '</div><div class="text-[9px] text-slate-400">Com a maioria</div></div>' +
+                                    '<div class="bg-yellow-500/10 p-3 rounded-lg text-center"><div class="text-2xl font-black text-yellow-400">' + neutro + '</div><div class="text-[9px] text-slate-400">Equilibrado</div></div>' +
+                                    '<div class="bg-red-500/10 p-3 rounded-lg text-center"><div class="text-2xl font-black text-red-400">' + contraMaioria + '</div><div class="text-[9px] text-slate-400">Contra a maioria</div></div>';
+                            })() +
+                        '</div>' +
+                        '<p class="text-[10px] text-slate-500 mt-3 text-center">Total de votos da comunidade: ' + Data.games.reduce((sum, g) => sum + g.comm.h + g.comm.d + g.comm.a, 0) + '</p>' +
+                    '</div>' : '') +
+                    
+                    // Botão enviar
+                    (!isSubmitted ? '<div class="mt-6"><button onclick="Actions.submitVotes()" class="w-full bg-app-primary text-black font-bold py-4 rounded-xl shadow-xl text-sm">ENVIAR PALPITES</button></div>' : '') +
+                '</div>';
             },
-            AiXray: () => {
+                        AiXray: () => {
                 const rc = Data.analysis.current.resumoCartela;
                 const palpites = rc && rc.palpites ? rc.palpites.split(',') : [];
                 const duplos = rc && rc.duplos ? rc.duplos : [];
@@ -706,7 +751,7 @@
                 let numApostas = 1;
                 duplos.forEach(() => numApostas *= 2);
                 triplos.forEach(() => numApostas *= 3);
-                const custoBase = 3.00; // valor minimo da aposta Loteca
+                const custoBase = 2.00; // valor por aposta individual Loteca
                 const custoTotal = (numApostas * custoBase).toFixed(2);
 
                 return `
@@ -852,24 +897,229 @@
                     } catch(e) { dataFormatada = ''; }
                 }
                 const isAdmin = Auth.user && Auth.user.email === 'mateusmachado11m@gmail.com';
-                return `
-                <div class="animate-fade-in space-y-6">
-                    <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
-                        <div class="flex items-center justify-between mb-2">
-                            <h2 class="text-2xl font-black text-white"><i class="fas fa-exchange-alt text-app-primary mr-2"></i>Mercado da Bola</h2>
-                            ${isAdmin ? '<button onclick="MercadoActions.atualizar(true)" class="px-3 py-1.5 bg-app-primary/20 hover:bg-app-primary/30 text-app-primary text-xs font-bold rounded-lg transition-all" id="btn-atualizar-mercado"><i class="fas fa-sync-alt mr-1"></i>Atualizar</button>' : ''}
-                        </div>
-                        <p class="text-sm text-slate-300">Transferencias, rumores e lesoes que impactam a Loteca</p>
-                        ${dataFormatada ? '<div class="flex flex-wrap items-center gap-3 mt-3"><span class="text-xs text-slate-500"><i class="fas fa-clock mr-1"></i>Atualizado: ' + dataFormatada + '</span><span class="text-xs text-slate-500"><i class="fas fa-newspaper mr-1"></i>' + totalNoticias + ' noticias</span>' + (m.modelo && m.modelo.includes('grounding') ? '<span class="text-xs text-green-500"><i class="fas fa-check-circle mr-1"></i>Dados verificados via Google</span>' : '') + '</div>' : ''}
-                    </div>
-                    ${isLoading ? '<div class="bg-app-surface p-12 rounded-xl border border-app-primary/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-app-primary/30 border-t-app-primary rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Buscando noticias nos portais esportivos...</p><p class="text-xs text-slate-400 mt-2">Consultando ge.globo, Gazzetta, Marca, BBC Sport e outros</p><p class="text-xs text-slate-500 mt-1" id="mercado-loading-status">Isso pode levar ate 2 minutos</p></div>' : ''}
-                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-green-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-check-circle text-green-400 mr-2"></i>Transferencias Confirmadas</h3>' + (m.destaque.length > 0 ? '<span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-bold rounded">' + m.destaque.length + '</span>' : '') + '</div>' + (m.destaque.length > 0 ? m.destaque.map(t => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-user-plus text-green-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + t.jogador + '</div><div class="text-xs text-slate-400 mt-1">' + t.de + ' <i class="fas fa-arrow-right text-app-primary mx-1"></i> ' + t.para + '</div>' + (t.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + t.impactoLoteca + '</div>' : '') + '<div class="flex items-center gap-3 mt-1">' + (t.data ? '<span class="text-xs text-slate-500"><i class="fas fa-calendar mr-1"></i>' + t.data + '</span>' : '') + (t.fonte ? '<span class="text-xs text-slate-500"><i class="fas fa-newspaper mr-1"></i>' + t.fonte + '</span>' : '') + '</div></div>' + (t.valor ? '<div class="text-app-primary font-bold text-sm whitespace-nowrap">' + t.valor + '</div>' : '') + '</div>').join('') : '<div class="text-center py-8"><i class="fas fa-newspaper text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Nenhuma transferencia confirmada encontrada para os times deste concurso.</p></div>') + '</div>' : ''}
-                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-yellow-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-comment-dots text-yellow-400 mr-2"></i>Rumores e Negociacoes</h3>' + (m.rumores.length > 0 ? '<span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] font-bold rounded">' + m.rumores.length + '</span>' : '') + '</div>' + (m.rumores.length > 0 ? m.rumores.map(r => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-question text-yellow-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + r.jogador + '</div><div class="text-xs text-slate-400 mt-1">' + r.descricao + '</div>' + (r.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + r.impactoLoteca + '</div>' : '') + (r.fonte ? '<div class="text-xs text-slate-500 mt-1"><i class="fas fa-newspaper mr-1"></i>' + r.fonte + '</div>' : '') + '</div><span class="px-2 py-1 rounded text-[10px] font-bold ' + (r.probabilidade === 'alta' ? 'bg-green-500/20 text-green-400' : (r.probabilidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400')) + '">' + (r.probabilidade || 'media').toUpperCase() + '</span></div>').join('') : '<div class="text-center py-8"><i class="fas fa-comment-slash text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Nenhum rumor relevante encontrado para os times deste concurso.</p></div>') + '</div>' : ''}
-                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-red-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-medkit text-red-400 mr-2"></i>Lesoes e Desfalques</h3>' + (m.lesoes.length > 0 ? '<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold rounded">' + m.lesoes.length + '</span>' : '') + '</div>' + (m.lesoes.length > 0 ? m.lesoes.map(l => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-heartbeat text-red-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + l.jogador + ' <span class="text-xs text-slate-400 font-normal">(' + l.time + ')</span></div><div class="text-xs text-slate-400 mt-1">' + l.descricao + '</div>' + (l.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + l.impactoLoteca + '</div>' : '') + '<div class="text-xs text-slate-500 mt-1"><i class="fas fa-clock mr-1"></i>Previsao: ' + (l.previsao || 'Indefinida') + '</div></div><span class="px-2 py-1 rounded text-[10px] font-bold ' + (l.gravidade === 'alta' ? 'bg-red-500/20 text-red-400' : (l.gravidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400')) + '">' + (l.gravidade || 'media').toUpperCase() + '</span></div>').join('') : '<div class="text-center py-8"><i class="fas fa-notes-medical text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Nenhuma lesao ou desfalque relevante encontrado para os times deste concurso.</p></div>') + '</div>' : ''}
-                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-violet-500/20"><h3 class="text-white font-bold mb-4"><i class="fas fa-lightbulb text-violet-400 mr-2"></i>Impacto na Loteca</h3><div class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">' + (m.impacto || 'Publique um concurso para gerar automaticamente a analise de impacto das movimentacoes de mercado nos jogos da Loteca.') + '</div></div>' : ''}
-                    ${!isLoading && m.fontes && m.fontes.length > 0 ? '<div class="bg-app-surface p-4 rounded-xl border border-white/5"><h4 class="text-xs font-bold text-slate-400 mb-3"><i class="fas fa-link mr-1"></i>Fontes consultadas (' + m.fontes.length + ')</h4><div class="flex flex-wrap gap-2">' + m.fontes.map(f => '<a href="' + f.url + '" target="_blank" rel="noopener" class="text-[10px] px-2 py-1 bg-black/30 text-slate-400 hover:text-app-primary rounded border border-white/5 transition-colors truncate max-w-[200px]" title="' + f.titulo + '">' + (f.titulo || f.url) + '</a>').join('') + '</div></div>' : ''}
-                </div>
-                `;
+                
+                // Filtros
+                const filtroTipo = State.mercadoFiltroTipo || 'todos';
+                const filtroTime = State.mercadoFiltroTime || 'todos';
+                
+                // Extrair times únicos de todas as notícias
+                const timesSet = new Set();
+                (m.destaque || []).forEach(t => { if(t.de) timesSet.add(t.de); if(t.para) timesSet.add(t.para); });
+                (m.rumores || []).forEach(r => { if(r.times) r.times.forEach(t => timesSet.add(t)); else if(r.descricao) { const match = r.descricao.match(/([A-Z][a-záéíóúãõ]+(?:\s[A-Z][a-záéíóúãõ]*)*)/g); if(match) match.forEach(t => timesSet.add(t)); }});
+                (m.lesoes || []).forEach(l => { if(l.time) timesSet.add(l.time); });
+                // Também extrair dos jogos do concurso
+                Data.games.forEach(g => { timesSet.add(g.home.name); timesSet.add(g.away.name); });
+                const timesArray = [...timesSet].sort();
+                
+                // Aplicar filtros
+                let destaque = m.destaque || [];
+                let rumores = m.rumores || [];
+                let lesoes = m.lesoes || [];
+                
+                if (filtroTime !== 'todos') {
+                    const ft = filtroTime.toLowerCase();
+                    destaque = destaque.filter(t => (t.de||'').toLowerCase().includes(ft) || (t.para||'').toLowerCase().includes(ft));
+                    rumores = rumores.filter(r => (r.descricao||'').toLowerCase().includes(ft) || (r.jogador||'').toLowerCase().includes(ft) || (r.times||[]).some(t => t.toLowerCase().includes(ft)));
+                    lesoes = lesoes.filter(l => (l.time||'').toLowerCase().includes(ft));
+                }
+                
+                const showTransf = filtroTipo === 'todos' || filtroTipo === 'transferencias';
+                const showRumores = filtroTipo === 'todos' || filtroTipo === 'rumores';
+                const showLesoes = filtroTipo === 'todos' || filtroTipo === 'lesoes';
+                const showImpacto = filtroTipo === 'todos' || filtroTipo === 'impacto';
+                
+                const filtroBtn = (id, label, icon, count) => {
+                    const isActive = filtroTipo === id;
+                    return '<button onclick="State.mercadoFiltroTipo=\'' + id + '\'; Router.render();" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ' + (isActive ? 'bg-app-primary text-black' : 'bg-white/5 text-slate-400 hover:bg-white/10') + '"><i class="fas ' + icon + '"></i>' + label + (count > 0 ? ' <span class="px-1.5 py-0.5 rounded-full text-[9px] ' + (isActive ? 'bg-black/20' : 'bg-white/10') + '">' + count + '</span>' : '') + '</button>';
+                };
+                
+                return '<div class="animate-fade-in space-y-4">' +
+                    // Header
+                    '<div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">' +
+                        '<div class="flex items-center justify-between mb-2">' +
+                            '<h2 class="text-2xl font-black text-white"><i class="fas fa-exchange-alt text-app-primary mr-2"></i>Mercado da Bola</h2>' +
+                            (isAdmin ? '<button onclick="MercadoActions.atualizar(true)" class="px-3 py-1.5 bg-app-primary/20 hover:bg-app-primary/30 text-app-primary text-xs font-bold rounded-lg transition-all" id="btn-atualizar-mercado"><i class="fas fa-sync-alt mr-1"></i>Atualizar</button>' : '') +
+                        '</div>' +
+                        '<p class="text-sm text-slate-300">Transferencias, rumores e lesoes que impactam a Loteca</p>' +
+                        (dataFormatada ? '<div class="flex flex-wrap items-center gap-3 mt-3"><span class="text-xs text-slate-500"><i class="fas fa-clock mr-1"></i>Atualizado: ' + dataFormatada + '</span><span class="text-xs text-slate-500"><i class="fas fa-newspaper mr-1"></i>' + totalNoticias + ' noticias</span></div>' : '') +
+                    '</div>' +
+                    
+                    // Filtros por tipo
+                    (!isLoading ? '<div class="bg-app-surface p-4 rounded-xl border border-white/5">' +
+                        '<div class="flex items-center gap-2 mb-3"><i class="fas fa-filter text-slate-400 text-xs"></i><span class="text-xs font-bold text-slate-400">Filtrar por tipo</span></div>' +
+                        '<div class="flex flex-wrap gap-2">' +
+                            filtroBtn('todos', 'Todos', 'fa-globe', totalNoticias) +
+                            filtroBtn('transferencias', 'Transferencias', 'fa-check-circle', destaque.length) +
+                            filtroBtn('rumores', 'Rumores', 'fa-comment-dots', rumores.length) +
+                            filtroBtn('lesoes', 'Lesoes', 'fa-medkit', lesoes.length) +
+                            filtroBtn('impacto', 'Impacto', 'fa-lightbulb', 0) +
+                        '</div>' +
+                        // Filtro por time
+                        '<div class="flex items-center gap-2 mt-4 mb-2"><i class="fas fa-shield-alt text-slate-400 text-xs"></i><span class="text-xs font-bold text-slate-400">Filtrar por time</span></div>' +
+                        '<div class="flex flex-wrap gap-1.5">' +
+                            '<button onclick="State.mercadoFiltroTime=\'todos\'; Router.render();" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ' + (filtroTime === 'todos' ? 'bg-app-primary text-black' : 'bg-white/5 text-slate-400 hover:bg-white/10') + '">Todos</button>' +
+                            timesArray.map(t => '<button onclick="State.mercadoFiltroTime=\'' + t.replace(/'/g, "\\'") + '\'; Router.render();" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ' + (filtroTime === t ? 'bg-app-primary text-black' : 'bg-white/5 text-slate-400 hover:bg-white/10') + '">' + t + '</button>').join('') +
+                        '</div>' +
+                    '</div>' : '') +
+                    
+                    // Loading
+                    (isLoading ? '<div class="bg-app-surface p-12 rounded-xl border border-app-primary/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-app-primary/30 border-t-app-primary rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Buscando noticias nos portais esportivos...</p><p class="text-xs text-slate-400 mt-2">Consultando ge.globo, Gazzetta, Marca, BBC Sport e outros</p></div>' : '') +
+                    
+                    // Transferências
+                    (!isLoading && showTransf ? '<div class="bg-app-surface p-6 rounded-xl border border-green-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-check-circle text-green-400 mr-2"></i>Transferencias Confirmadas</h3>' + (destaque.length > 0 ? '<span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-bold rounded">' + destaque.length + '</span>' : '') + '</div>' + (destaque.length > 0 ? destaque.map(t => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-user-plus text-green-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + t.jogador + '</div><div class="text-xs text-slate-400 mt-1">' + t.de + ' <i class="fas fa-arrow-right text-app-primary mx-1"></i> ' + t.para + '</div>' + (t.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + t.impactoLoteca + '</div>' : '') + '<div class="flex items-center gap-3 mt-1">' + (t.data ? '<span class="text-xs text-slate-500"><i class="fas fa-calendar mr-1"></i>' + t.data + '</span>' : '') + (t.fonte ? '<span class="text-xs text-slate-500"><i class="fas fa-newspaper mr-1"></i>' + t.fonte + '</span>' : '') + '</div></div>' + (t.valor ? '<div class="text-app-primary font-bold text-sm whitespace-nowrap">' + t.valor + '</div>' : '') + '</div>').join('') : '<div class="text-center py-6"><i class="fas fa-newspaper text-3xl text-slate-700 mb-2"></i><p class="text-sm text-slate-500">Nenhuma transferencia encontrada' + (filtroTime !== 'todos' ? ' para ' + filtroTime : '') + '.</p></div>') + '</div>' : '') +
+                    
+                    // Rumores
+                    (!isLoading && showRumores ? '<div class="bg-app-surface p-6 rounded-xl border border-yellow-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-comment-dots text-yellow-400 mr-2"></i>Rumores e Negociacoes</h3>' + (rumores.length > 0 ? '<span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] font-bold rounded">' + rumores.length + '</span>' : '') + '</div>' + (rumores.length > 0 ? rumores.map(r => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-question text-yellow-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + r.jogador + '</div><div class="text-xs text-slate-400 mt-1">' + r.descricao + '</div>' + (r.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + r.impactoLoteca + '</div>' : '') + (r.fonte ? '<div class="text-xs text-slate-500 mt-1"><i class="fas fa-newspaper mr-1"></i>' + r.fonte + '</div>' : '') + '</div><span class="px-2 py-1 rounded text-[10px] font-bold ' + (r.probabilidade === 'alta' ? 'bg-green-500/20 text-green-400' : (r.probabilidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400')) + '">' + (r.probabilidade || 'media').toUpperCase() + '</span></div>').join('') : '<div class="text-center py-6"><i class="fas fa-comment-slash text-3xl text-slate-700 mb-2"></i><p class="text-sm text-slate-500">Nenhum rumor encontrado' + (filtroTime !== 'todos' ? ' para ' + filtroTime : '') + '.</p></div>') + '</div>' : '') +
+                    
+                    // Lesões
+                    (!isLoading && showLesoes ? '<div class="bg-app-surface p-6 rounded-xl border border-red-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-medkit text-red-400 mr-2"></i>Lesoes e Desfalques</h3>' + (lesoes.length > 0 ? '<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold rounded">' + lesoes.length + '</span>' : '') + '</div>' + (lesoes.length > 0 ? lesoes.map(l => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-heartbeat text-red-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + l.jogador + ' <span class="text-xs text-slate-400 font-normal">(' + l.time + ')</span></div><div class="text-xs text-slate-400 mt-1">' + l.descricao + '</div>' + (l.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + l.impactoLoteca + '</div>' : '') + '<div class="text-xs text-slate-500 mt-1"><i class="fas fa-clock mr-1"></i>Previsao: ' + (l.previsao || 'Indefinida') + '</div></div><span class="px-2 py-1 rounded text-[10px] font-bold ' + (l.gravidade === 'alta' ? 'bg-red-500/20 text-red-400' : (l.gravidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400')) + '">' + (l.gravidade || 'media').toUpperCase() + '</span></div>').join('') : '<div class="text-center py-6"><i class="fas fa-notes-medical text-3xl text-slate-700 mb-2"></i><p class="text-sm text-slate-500">Nenhuma lesao encontrada' + (filtroTime !== 'todos' ? ' para ' + filtroTime : '') + '.</p></div>') + '</div>' : '') +
+                    
+                    // Impacto
+                    (!isLoading && showImpacto ? '<div class="bg-app-surface p-6 rounded-xl border border-violet-500/20"><h3 class="text-white font-bold mb-4"><i class="fas fa-lightbulb text-violet-400 mr-2"></i>Impacto na Loteca</h3><div class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">' + (m.impacto || 'Publique um concurso para gerar a analise de impacto.') + '</div></div>' : '') +
+                    
+                    // Fontes
+                    (!isLoading && m.fontes && m.fontes.length > 0 ? '<div class="bg-app-surface p-4 rounded-xl border border-white/5"><h4 class="text-xs font-bold text-slate-400 mb-3"><i class="fas fa-link mr-1"></i>Fontes consultadas (' + m.fontes.length + ')</h4><div class="flex flex-wrap gap-2">' + m.fontes.map(f => '<a href="' + f.url + '" target="_blank" rel="noopener" class="text-[10px] px-2 py-1 bg-black/30 text-slate-400 hover:text-app-primary rounded border border-white/5 transition-colors truncate max-w-[200px]" title="' + f.titulo + '">' + (f.titulo || f.url) + '</a>').join('') + '</div></div>' : '') +
+                '</div>';
+            },
+            
+            Montador: () => {
+                const montagem = State.montagem || {};
+                const jogos = Data.games;
+                
+                // Calcular duplos e triplos
+                let numDuplos = 0, numTriplos = 0;
+                jogos.forEach(g => {
+                    const sel = montagem[g.id] || [];
+                    if (sel.length === 2) numDuplos++;
+                    if (sel.length === 3) numTriplos++;
+                });
+                
+                let numApostas = 1;
+                jogos.forEach(g => {
+                    const sel = montagem[g.id] || [];
+                    if (sel.length >= 1) numApostas *= sel.length;
+                });
+                const custoAposta = 2.00;
+                const valorTotal = numApostas * custoAposta;
+                const todosPreenchidos = jogos.every(g => (montagem[g.id] || []).length >= 1);
+                
+                return '<div class="animate-fade-in space-y-4 pb-20">' +
+                    '<div class="bg-gradient-to-br from-amber-900/30 to-app-bg p-6 rounded-2xl border border-amber-500/20 shadow-2xl">' +
+                        '<h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-gamepad text-amber-400 mr-2"></i>Montador de Jogo</h2>' +
+                        '<p class="text-sm text-slate-300">Monte sua aposta, calcule o valor e compartilhe!</p>' +
+                        '<p class="text-xs text-slate-500 mt-1">Concurso #' + Data.analysis.current.id + '</p>' +
+                    '</div>' +
+                    
+                    // Painel de custo fixo
+                    '<div class="bg-app-surface p-4 rounded-xl border border-amber-500/20 sticky top-0 z-10">' +
+                        '<div class="flex items-center justify-between">' +
+                            '<div class="flex items-center gap-4">' +
+                                '<div class="text-center"><div class="text-lg font-black text-white">' + numDuplos + '</div><div class="text-[9px] text-slate-400">Duplos</div></div>' +
+                                '<div class="text-center"><div class="text-lg font-black text-white">' + numTriplos + '</div><div class="text-[9px] text-slate-400">Triplos</div></div>' +
+                                '<div class="text-center"><div class="text-lg font-black text-white">' + numApostas.toLocaleString('pt-BR') + '</div><div class="text-[9px] text-slate-400">Apostas</div></div>' +
+                            '</div>' +
+                            '<div class="text-right">' +
+                                '<div class="text-2xl font-black text-app-primary">R$ ' + valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</div>' +
+                                '<div class="text-[9px] text-slate-400">Valor total</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    
+                    // Grid de jogos para montar
+                    '<div class="bg-app-surface rounded-xl border border-white/5 overflow-hidden">' +
+                        '<div class="grid grid-cols-12 gap-1 px-3 py-2 bg-black/30 border-b border-white/10">' +
+                            '<div class="col-span-1 text-center text-[9px] font-bold text-slate-500">JG</div>' +
+                            '<div class="col-span-4 text-right text-[9px] font-bold text-slate-500">MANDANTE</div>' +
+                            '<div class="col-span-1 text-center text-[9px] font-bold text-green-400">1</div>' +
+                            '<div class="col-span-1 text-center text-[9px] font-bold text-yellow-400">X</div>' +
+                            '<div class="col-span-1 text-center text-[9px] font-bold text-red-400">2</div>' +
+                            '<div class="col-span-4 text-left text-[9px] font-bold text-slate-500">VISITANTE</div>' +
+                        '</div>' +
+                        jogos.map(g => {
+                            const sel = montagem[g.id] || [];
+                            const renderBtn = (type, label) => {
+                                const isSel = sel.includes(type);
+                                const cls = isSel ? (type==='h'?'bg-green-500 text-black font-bold':(type==='d'?'bg-yellow-500 text-black font-bold':'bg-red-500 text-black font-bold')) : 'bg-slate-800 text-slate-400';
+                                return '<button onclick="MontadorActions.toggle(' + g.id + ', \'' + type + '\')" class="h-9 w-full rounded flex items-center justify-center text-xs transition-all ' + cls + ' hover:scale-105">' + (isSel?'<i class="fas fa-check"></i>':label) + '</button>';
+                            };
+                            const tipo = sel.length === 3 ? '<span class="text-[8px] text-violet-400">T</span>' : (sel.length === 2 ? '<span class="text-[8px] text-amber-400">D</span>' : '');
+                            return '<div class="grid grid-cols-12 gap-2 border-b border-white/5 items-center py-3 px-3">' +
+                                '<div class="col-span-1 text-center text-xs font-bold text-slate-500">' + g.id + tipo + '</div>' +
+                                '<div class="col-span-4 text-right text-xs font-bold text-white truncate pr-2">' + g.home.name + '</div>' +
+                                '<div class="col-span-1">' + renderBtn('h','1') + '</div>' +
+                                '<div class="col-span-1">' + renderBtn('d','X') + '</div>' +
+                                '<div class="col-span-1">' + renderBtn('a','2') + '</div>' +
+                                '<div class="col-span-4 text-left text-xs font-bold text-white truncate pl-2">' + g.away.name + '</div>' +
+                            '</div>';
+                        }).join('') +
+                    '</div>' +
+                    
+                    // Botões de ação
+                    '<div class="flex gap-3">' +
+                        '<button onclick="MontadorActions.limpar()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-white transition-all"><i class="fas fa-eraser mr-1"></i>Limpar</button>' +
+                        '<button onclick="MontadorActions.compartilhar()" class="flex-1 py-3 bg-app-primary hover:bg-green-400 text-black font-bold rounded-lg text-xs transition-all ' + (!todosPreenchidos ? 'opacity-50' : '') + '" ' + (!todosPreenchidos ? 'disabled' : '') + '><i class="fas fa-share-alt mr-1"></i>Compartilhar</button>' +
+                        '<button onclick="MontadorActions.imprimir()" class="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg text-xs transition-all ' + (!todosPreenchidos ? 'opacity-50' : '') + '" ' + (!todosPreenchidos ? 'disabled' : '') + '><i class="fas fa-print mr-1"></i>Imprimir</button>' +
+                    '</div>' +
+                '</div>';
+            },
+            
+            Cartola: () => {
+                const cartola = Data._cartolaData || null;
+                const isLoading = Data._cartolaLoading;
+                
+                return '<div class="animate-fade-in space-y-4 pb-20">' +
+                    '<div class="bg-gradient-to-br from-orange-900/30 to-app-bg p-6 rounded-2xl border border-orange-500/20 shadow-2xl">' +
+                        '<h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-futbol text-orange-400 mr-2"></i>Parciais Cartola FC</h2>' +
+                        '<p class="text-sm text-slate-300">Acompanhe as parciais da rodada em tempo real</p>' +
+                        '<div class="flex gap-3 mt-4">' +
+                            '<button onclick="CartolaActions.carregar()" class="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs font-bold rounded-lg transition-all"><i class="fas fa-sync-alt mr-1"></i>Atualizar</button>' +
+                        '</div>' +
+                    '</div>' +
+                    
+                    (isLoading ? '<div class="bg-app-surface p-12 rounded-xl border border-orange-500/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-orange-500/30 border-t-orange-500 rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Carregando parciais do Cartola...</p></div>' : '') +
+                    
+                    (!isLoading && cartola ? 
+                        '<div class="bg-app-surface p-4 rounded-xl border border-white/5">' +
+                            '<div class="flex items-center justify-between mb-4">' +
+                                '<h3 class="text-white font-bold text-sm"><i class="fas fa-trophy text-orange-400 mr-2"></i>Rodada ' + (cartola.rodada || '-') + '</h3>' +
+                                '<span class="text-xs text-slate-500">' + (cartola.status || '') + '</span>' +
+                            '</div>' +
+                            // Mercado status
+                            '<div class="grid grid-cols-3 gap-3 mb-4">' +
+                                '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-orange-400">' + (cartola.mediaGeral || '-') + '</div><div class="text-[9px] text-slate-400">Media Geral</div></div>' +
+                                '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-green-400">' + (cartola.maiorPontuacao || '-') + '</div><div class="text-[9px] text-slate-400">Maior Pont.</div></div>' +
+                                '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-amber-400">' + (cartola.jogosFinalizados || '0') + '/' + (cartola.totalJogos || '10') + '</div><div class="text-[9px] text-slate-400">Jogos</div></div>' +
+                            '</div>' +
+                            // Jogadores em destaque
+                            (cartola.destaques && cartola.destaques.length > 0 ? 
+                                '<h4 class="text-xs font-bold text-slate-400 mb-2"><i class="fas fa-star mr-1"></i>Destaques da Rodada</h4>' +
+                                '<div class="space-y-2">' +
+                                    cartola.destaques.map((j, i) => 
+                                        '<div class="flex items-center gap-3 bg-black/20 p-3 rounded-lg">' +
+                                            '<div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-xs">' + (i+1) + '</div>' +
+                                            '<div class="flex-1"><div class="text-sm font-bold text-white">' + j.nome + '</div><div class="text-[10px] text-slate-400">' + j.posicao + ' - ' + j.clube + '</div></div>' +
+                                            '<div class="text-right"><div class="text-lg font-black ' + (j.pontos >= 0 ? 'text-green-400' : 'text-red-400') + '">' + j.pontos + '</div><div class="text-[9px] text-slate-400">pts</div></div>' +
+                                        '</div>'
+                                    ).join('') +
+                                '</div>'
+                            : '') +
+                            // Jogos da rodada
+                            (cartola.jogos && cartola.jogos.length > 0 ?
+                                '<h4 class="text-xs font-bold text-slate-400 mb-2 mt-4"><i class="fas fa-futbol mr-1"></i>Jogos da Rodada</h4>' +
+                                '<div class="space-y-2">' +
+                                    cartola.jogos.map(j => 
+                                        '<div class="flex items-center gap-2 bg-black/20 p-3 rounded-lg">' +
+                                            '<div class="flex-1 text-right text-xs font-bold text-white">' + j.mandante + '</div>' +
+                                            '<div class="px-3 py-1 rounded bg-black/30 text-sm font-black ' + (j.status === 'Encerrado' ? 'text-white' : 'text-slate-400') + '">' + (j.placarMandante !== undefined ? j.placarMandante + ' x ' + j.placarVisitante : 'vs') + '</div>' +
+                                            '<div class="flex-1 text-left text-xs font-bold text-white">' + j.visitante + '</div>' +
+                                            '<span class="text-[9px] px-2 py-0.5 rounded ' + (j.status === 'Encerrado' ? 'bg-green-500/20 text-green-400' : (j.status === 'Em andamento' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/5 text-slate-500')) + '">' + (j.status || 'Agendado') + '</span>' +
+                                        '</div>'
+                                    ).join('') +
+                                '</div>'
+                            : '') +
+                        '</div>'
+                    : (!isLoading ? '<div class="bg-app-surface p-8 rounded-xl border border-white/5 text-center"><i class="fas fa-futbol text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Clique em Atualizar para carregar as parciais do Cartola FC.</p><p class="text-xs text-slate-600 mt-2">Dados obtidos da API oficial do Cartola FC (api.cartola.globo.com)</p></div>' : '')) +
+                '</div>';
             },
             
             Admin: () => {
@@ -1209,6 +1459,8 @@
                     { id: 'ranking', icon: 'fa-medal', label: 'Ranking' },
                     { id: 'palpites', icon: 'fa-pen-to-square', label: 'Palpites' },
                     { id: 'market', icon: 'fa-exchange-alt', label: 'Mercado' },
+                    { id: 'montador', icon: 'fa-gamepad', label: 'Montador' },
+                    { id: 'cartola', icon: 'fa-futbol', label: 'Cartola' },
                     { id: 'prices', icon: 'fa-tag', label: 'Preços' }
                 ];
                 
@@ -1232,6 +1484,8 @@
                     case 'ai-xray': main.innerHTML = Views.AiXray(); break;
                     case 'market': main.innerHTML = Views.Market(); setTimeout(() => MercadoActions.carregarSeNecessario(), 100); break;
                     case 'prices': main.innerHTML = Views.Prices(); break;
+                    case 'montador': main.innerHTML = Views.Montador(); break;
+                    case 'cartola': main.innerHTML = Views.Cartola(); setTimeout(() => CartolaActions.carregar(), 100); break;
                     case 'ranking': main.innerHTML = Views.Ranking(); break;
                     case 'admin': main.innerHTML = Views.Admin(); setTimeout(() => { AdminActions.carregarAlertas(); AdminActions.carregarConcursosParaRegen(); }, 500); break;
                 }
@@ -1932,6 +2186,175 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
         };
 
         // MERCADO ACTIONS
+        // MONTADOR ACTIONS
+        const MontadorActions = {
+            toggle: (gameId, type) => {
+                if (!State.montagem) State.montagem = {};
+                const sel = State.montagem[gameId] || [];
+                const idx = sel.indexOf(type);
+                if (idx >= 0) {
+                    sel.splice(idx, 1);
+                } else {
+                    sel.push(type);
+                }
+                State.montagem[gameId] = sel;
+                Router.render();
+            },
+            limpar: () => {
+                State.montagem = {};
+                Router.render();
+            },
+            compartilhar: () => {
+                const montagem = State.montagem || {};
+                const jogos = Data.games;
+                let texto = '🎯 LOTECA PRO - Concurso #' + Data.analysis.current.id + '\n';
+                texto += '━━━━━━━━━━━━━━━━━━━━━\n';
+                jogos.forEach(g => {
+                    const sel = montagem[g.id] || [];
+                    const palpite = sel.map(s => s==='h'?'1':(s==='d'?'X':'2')).join('/');
+                    const tipo = sel.length === 3 ? ' (T)' : (sel.length === 2 ? ' (D)' : '');
+                    texto += g.id + '. ' + g.home.name + ' x ' + g.away.name + ' → ' + palpite + tipo + '\n';
+                });
+                let numApostas = 1;
+                jogos.forEach(g => { const sel = montagem[g.id] || []; if (sel.length >= 1) numApostas *= sel.length; });
+                texto += '━━━━━━━━━━━━━━━━━━━━━\n';
+                texto += '💰 Valor: R$ ' + (numApostas * 2).toLocaleString('pt-BR', {minimumFractionDigits: 2}) + ' (' + numApostas + ' apostas)\n';
+                texto += '🌐 loteca-pro-mateus-1767825041.web.app';
+                
+                if (navigator.share) {
+                    navigator.share({ title: 'Minha Aposta Loteca', text: texto }).catch(() => {});
+                } else {
+                    navigator.clipboard.writeText(texto).then(() => alert('Aposta copiada para a area de transferencia!')).catch(() => alert(texto));
+                }
+            },
+            imprimir: () => {
+                const montagem = State.montagem || {};
+                const jogos = Data.games;
+                let numApostas = 1;
+                let numDuplos = 0, numTriplos = 0;
+                jogos.forEach(g => { 
+                    const sel = montagem[g.id] || []; 
+                    if (sel.length >= 1) numApostas *= sel.length;
+                    if (sel.length === 2) numDuplos++;
+                    if (sel.length === 3) numTriplos++;
+                });
+                
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write('<html><head><title>Loteca Pro - Concurso #' + Data.analysis.current.id + '</title><style>');
+                printWindow.document.write('body{font-family:Arial,sans-serif;padding:20px;max-width:500px;margin:0 auto}');
+                printWindow.document.write('.header{text-align:center;border-bottom:3px solid #4ade80;padding-bottom:15px;margin-bottom:15px}');
+                printWindow.document.write('.header h1{color:#0f172a;font-size:24px;margin:0}');
+                printWindow.document.write('.header h2{color:#4ade80;font-size:16px;margin:5px 0}');
+                printWindow.document.write('.header p{color:#666;font-size:12px}');
+                printWindow.document.write('table{width:100%;border-collapse:collapse;margin:10px 0}');
+                printWindow.document.write('th{background:#0f172a;color:white;padding:8px;font-size:11px;text-align:center}');
+                printWindow.document.write('td{padding:6px 8px;border-bottom:1px solid #eee;font-size:12px}');
+                printWindow.document.write('.palpite{font-weight:bold;text-align:center;font-size:14px}');
+                printWindow.document.write('.sel-1{color:#22c55e}.sel-X{color:#eab308}.sel-2{color:#ef4444}');
+                printWindow.document.write('.duplo{background:#fef3c7}.triplo{background:#ede9fe}');
+                printWindow.document.write('.footer{text-align:center;margin-top:15px;padding-top:15px;border-top:2px solid #4ade80}');
+                printWindow.document.write('.footer .valor{font-size:28px;font-weight:900;color:#0f172a}');
+                printWindow.document.write('.footer .site{color:#4ade80;font-size:14px;font-weight:bold;margin-top:10px}');
+                printWindow.document.write('.info{display:flex;justify-content:space-around;margin:10px 0;font-size:12px}');
+                printWindow.document.write('.info div{text-align:center}.info .num{font-size:20px;font-weight:900}');
+                printWindow.document.write('</style></head><body>');
+                printWindow.document.write('<div class="header"><h1>🎯 LOTECA PRO</h1><h2>Concurso #' + Data.analysis.current.id + '</h2><p>A Casa do Lotequeiro Profissional</p></div>');
+                printWindow.document.write('<div class="info"><div><div class="num">' + numDuplos + '</div>Duplos</div><div><div class="num">' + numTriplos + '</div>Triplos</div><div><div class="num">' + numApostas + '</div>Apostas</div></div>');
+                printWindow.document.write('<table><tr><th>JG</th><th>MANDANTE</th><th>1</th><th>X</th><th>2</th><th>VISITANTE</th></tr>');
+                jogos.forEach(g => {
+                    const sel = montagem[g.id] || [];
+                    const rowClass = sel.length === 3 ? ' class="triplo"' : (sel.length === 2 ? ' class="duplo"' : '');
+                    printWindow.document.write('<tr' + rowClass + '><td style="text-align:center;font-weight:bold">' + g.id + '</td><td style="text-align:right">' + g.home.name + '</td>');
+                    ['h','d','a'].forEach(t => {
+                        const label = t==='h'?'1':(t==='d'?'X':'2');
+                        const isSel = sel.includes(t);
+                        printWindow.document.write('<td class="palpite sel-' + label + '">' + (isSel ? label : '-') + '</td>');
+                    });
+                    printWindow.document.write('<td>' + g.away.name + '</td></tr>');
+                });
+                printWindow.document.write('</table>');
+                printWindow.document.write('<div class="footer"><div class="valor">R$ ' + (numApostas * 2).toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</div><p style="color:#666;font-size:11px">' + numApostas + ' apostas × R$ 2,00</p><div class="site">loteca-pro-mateus-1767825041.web.app</div><p style="color:#999;font-size:10px">Gerado em ' + new Date().toLocaleString('pt-BR') + '</p></div>');
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                setTimeout(() => printWindow.print(), 500);
+            }
+        };
+
+        // CARTOLA ACTIONS
+        const CartolaActions = {
+            async carregar() {
+                Data._cartolaLoading = true;
+                if (State.currentRoute === 'cartola') Router.render();
+                try {
+                    // API oficial do Cartola FC
+                    const proxyUrl = 'https://us-central1-loteca-pro-mateus-1767825041.cloudfunctions.net/cartolaProxy';
+                    const [rodadaRes, mercadoRes] = await Promise.all([
+                        fetch(proxyUrl, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({endpoint:'atletas/pontuados'}) }).catch(() => null),
+                        fetch(proxyUrl, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({endpoint:'mercado/status'}) }).catch(() => null)
+                    ]);
+                    
+                    let cartolaData = { rodada: '-', status: 'Indisponivel', destaques: [], jogos: [], mediaGeral: '-', maiorPontuacao: '-', jogosFinalizados: 0, totalJogos: 10 };
+                    
+                    if (mercadoRes && mercadoRes.ok) {
+                        const mercadoResult = await mercadoRes.json();
+                        const mercado = mercadoResult.data || mercadoResult;
+                        cartolaData.rodada = mercado.rodada_atual || '-';
+                        cartolaData.status = mercado.status_mercado === 1 ? 'Mercado Aberto' : (mercado.status_mercado === 2 ? 'Mercado Fechado' : 'Rodada em andamento');
+                    }
+                    
+                    if (rodadaRes && rodadaRes.ok) {
+                        const pontuadosResult = await rodadaRes.json();
+                        const pontuados = pontuadosResult.data || pontuadosResult;
+                        const clubes = pontuados.clubes || {};
+                        const posicoes = pontuados.posicoes || {};
+                        const atletas = pontuados.atletas || {};
+                        
+                        // Top 10 jogadores por pontuação
+                        const jogadores = Object.values(atletas).map(a => ({
+                            nome: a.apelido,
+                            pontos: a.pontuacao ? parseFloat(a.pontuacao.toFixed(1)) : 0,
+                            clube: clubes[a.clube_id] ? clubes[a.clube_id].nome : '?',
+                            posicao: posicoes[a.posicao_id] ? posicoes[a.posicao_id].nome : '?'
+                        })).sort((a, b) => b.pontos - a.pontos).slice(0, 10);
+                        
+                        cartolaData.destaques = jogadores;
+                        
+                        if (jogadores.length > 0) {
+                            const totalPontos = jogadores.reduce((s, j) => s + j.pontos, 0);
+                            cartolaData.mediaGeral = (totalPontos / jogadores.length).toFixed(1);
+                            cartolaData.maiorPontuacao = jogadores[0].pontos.toFixed(1);
+                        }
+                    }
+                    
+                    // Tentar buscar jogos da rodada
+                    try {
+                        const partidasRes = await fetch(proxyUrl, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({endpoint:'partidas'}) });
+                        if (partidasRes.ok) {
+                            const partidasResult = await partidasRes.json();
+                            const partidas = partidasResult.data || partidasResult;
+                            const clubes = partidas.clubes || {};
+                            cartolaData.jogos = (partidas.partidas || []).map(p => ({
+                                mandante: clubes[p.clube_casa_id] ? clubes[p.clube_casa_id].nome : '?',
+                                visitante: clubes[p.clube_visitante_id] ? clubes[p.clube_visitante_id].nome : '?',
+                                placarMandante: p.placar_oficial_mandante,
+                                placarVisitante: p.placar_oficial_visitante,
+                                status: p.partida_data ? (p.placar_oficial_mandante !== null ? 'Encerrado' : 'Agendado') : 'Agendado'
+                            }));
+                            cartolaData.totalJogos = cartolaData.jogos.length;
+                            cartolaData.jogosFinalizados = cartolaData.jogos.filter(j => j.status === 'Encerrado').length;
+                        }
+                    } catch(e) { console.log('Erro ao buscar partidas:', e); }
+                    
+                    Data._cartolaData = cartolaData;
+                } catch (error) {
+                    console.error('Erro ao carregar Cartola:', error);
+                    Data._cartolaData = { rodada: '-', status: 'Erro ao carregar. A API do Cartola pode estar indisponivel.', destaques: [], jogos: [], mediaGeral: '-', maiorPontuacao: '-', jogosFinalizados: 0, totalJogos: 0 };
+                }
+                Data._cartolaLoading = false;
+                if (State.currentRoute === 'cartola') Router.render();
+            }
+        };
+
         const MercadoActions = {
             _loaded: false,
             async carregarSeNecessario() {

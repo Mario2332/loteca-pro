@@ -95,8 +95,16 @@
 
     <!-- HEADER -->
     <header class="bg-app-surface/95 backdrop-blur-md fixed top-24 left-0 w-full z-40 border-b border-white/5 h-16 flex items-center justify-between px-6">
-        <button onclick="Router.navigate('home')" class="flex items-center gap-2 focus:outline-none text-left group">
-            <img src="/logo-header.png" srcset="/logo-header-2x.png 2x" alt="Loteca Pro" class="h-10 object-contain group-hover:scale-105 transition-transform">
+        <button onclick="Router.navigate('home')" class="flex items-center gap-3 focus:outline-none text-left group">
+            <div class="bg-gradient-to-tr from-green-600 to-app-primary w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-green-500/20 group-hover:scale-105 transition-transform">
+                <i class="fas fa-trophy text-black text-sm"></i>
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-base font-bold tracking-tight leading-none text-white">
+                    LOTECA<span class="text-app-primary">PRO</span>
+                </h1>
+                <span class="text-[9px] text-slate-400 font-medium tracking-wide">A casa do lotequeiro profissional!</span>
+            </div>
         </button>
         <div id="header-user-area" class="text-right"></div>
     </header>
@@ -1066,62 +1074,58 @@
                 '</div>';
             },
             
-            Cartola: () => {
+            CartolaContent: () => {
                 const cartola = Data._cartolaData || null;
                 const isLoading = Data._cartolaLoading;
-                
+                if (isLoading) return '<div class="bg-app-surface p-12 rounded-xl border border-orange-500/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-orange-500/30 border-t-orange-500 rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Carregando parciais do Cartola...</p></div>';
+                if (!cartola) return '<div class="bg-app-surface p-8 rounded-xl border border-white/5 text-center"><i class="fas fa-futbol text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Clique em Atualizar para carregar as parciais do Cartola FC.</p><p class="text-xs text-slate-600 mt-2">Dados obtidos da API oficial do Cartola FC (api.cartola.globo.com)</p></div>';
+                return '<div class="bg-app-surface p-4 rounded-xl border border-white/5">' +
+                    '<div class="flex items-center justify-between mb-4">' +
+                        '<h3 class="text-white font-bold text-sm"><i class="fas fa-trophy text-orange-400 mr-2"></i>Rodada ' + (cartola.rodada || '-') + '</h3>' +
+                        '<span class="text-xs text-slate-500">' + (cartola.status || '') + '</span>' +
+                    '</div>' +
+                    '<div class="grid grid-cols-3 gap-3 mb-4">' +
+                        '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-orange-400">' + (cartola.mediaGeral || '-') + '</div><div class="text-[9px] text-slate-400">Media Geral</div></div>' +
+                        '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-green-400">' + (cartola.maiorPontuacao || '-') + '</div><div class="text-[9px] text-slate-400">Maior Pont.</div></div>' +
+                        '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-amber-400">' + (cartola.jogosFinalizados || '0') + '/' + (cartola.totalJogos || '10') + '</div><div class="text-[9px] text-slate-400">Jogos</div></div>' +
+                    '</div>' +
+                    (cartola.destaques && cartola.destaques.length > 0 ? 
+                        '<h4 class="text-xs font-bold text-slate-400 mb-2"><i class="fas fa-star mr-1"></i>Destaques da Rodada</h4>' +
+                        '<div class="space-y-2">' +
+                            cartola.destaques.map((j, i) => 
+                                '<div class="flex items-center gap-3 bg-black/20 p-3 rounded-lg">' +
+                                    '<div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-xs">' + (i+1) + '</div>' +
+                                    '<div class="flex-1"><div class="text-sm font-bold text-white">' + j.nome + '</div><div class="text-[10px] text-slate-400">' + j.posicao + ' - ' + j.clube + '</div></div>' +
+                                    '<div class="text-right"><div class="text-lg font-black ' + (j.pontos >= 0 ? 'text-green-400' : 'text-red-400') + '">' + j.pontos + '</div><div class="text-[9px] text-slate-400">pts</div></div>' +
+                                '</div>'
+                            ).join('') +
+                        '</div>'
+                    : '') +
+                    (cartola.jogos && cartola.jogos.length > 0 ?
+                        '<h4 class="text-xs font-bold text-slate-400 mb-2 mt-4"><i class="fas fa-futbol mr-1"></i>Jogos da Rodada</h4>' +
+                        '<div class="space-y-2">' +
+                            cartola.jogos.map(j => 
+                                '<div class="flex items-center gap-2 bg-black/20 p-3 rounded-lg">' +
+                                    '<div class="flex-1 text-right text-xs font-bold text-white">' + j.mandante + '</div>' +
+                                    '<div class="px-3 py-1 rounded bg-black/30 text-sm font-black ' + (j.status === 'Encerrado' ? 'text-white' : 'text-slate-400') + '">' + (j.placarMandante !== undefined && j.placarMandante !== null ? j.placarMandante + ' x ' + j.placarVisitante : 'vs') + '</div>' +
+                                    '<div class="flex-1 text-left text-xs font-bold text-white">' + j.visitante + '</div>' +
+                                    '<span class="text-[9px] px-2 py-0.5 rounded ' + (j.status === 'Encerrado' ? 'bg-green-500/20 text-green-400' : (j.status === 'Em andamento' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/5 text-slate-500')) + '">' + (j.status || 'Agendado') + '</span>' +
+                                '</div>'
+                            ).join('') +
+                        '</div>'
+                    : '') +
+                '</div>';
+            },
+            Cartola: () => {
                 return '<div class="animate-fade-in space-y-4 pb-20">' +
                     '<div class="bg-gradient-to-br from-orange-900/30 to-app-bg p-6 rounded-2xl border border-orange-500/20 shadow-2xl">' +
                         '<h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-futbol text-orange-400 mr-2"></i>Parciais Cartola FC</h2>' +
                         '<p class="text-sm text-slate-300">Acompanhe as parciais da rodada em tempo real</p>' +
                         '<div class="flex gap-3 mt-4">' +
-                            '<button onclick="CartolaActions.carregar()" class="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs font-bold rounded-lg transition-all"><i class="fas fa-sync-alt mr-1"></i>Atualizar</button>' +
+                            '<button onclick="Data._cartolaLoading=false;CartolaActions.carregar()" class="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs font-bold rounded-lg transition-all"><i class="fas fa-sync-alt mr-1"></i>Atualizar</button>' +
                         '</div>' +
                     '</div>' +
-                    
-                    (isLoading ? '<div class="bg-app-surface p-12 rounded-xl border border-orange-500/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-orange-500/30 border-t-orange-500 rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Carregando parciais do Cartola...</p></div>' : '') +
-                    
-                    (!isLoading && cartola ? 
-                        '<div class="bg-app-surface p-4 rounded-xl border border-white/5">' +
-                            '<div class="flex items-center justify-between mb-4">' +
-                                '<h3 class="text-white font-bold text-sm"><i class="fas fa-trophy text-orange-400 mr-2"></i>Rodada ' + (cartola.rodada || '-') + '</h3>' +
-                                '<span class="text-xs text-slate-500">' + (cartola.status || '') + '</span>' +
-                            '</div>' +
-                            // Mercado status
-                            '<div class="grid grid-cols-3 gap-3 mb-4">' +
-                                '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-orange-400">' + (cartola.mediaGeral || '-') + '</div><div class="text-[9px] text-slate-400">Media Geral</div></div>' +
-                                '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-green-400">' + (cartola.maiorPontuacao || '-') + '</div><div class="text-[9px] text-slate-400">Maior Pont.</div></div>' +
-                                '<div class="bg-black/20 p-3 rounded-lg text-center"><div class="text-lg font-black text-amber-400">' + (cartola.jogosFinalizados || '0') + '/' + (cartola.totalJogos || '10') + '</div><div class="text-[9px] text-slate-400">Jogos</div></div>' +
-                            '</div>' +
-                            // Jogadores em destaque
-                            (cartola.destaques && cartola.destaques.length > 0 ? 
-                                '<h4 class="text-xs font-bold text-slate-400 mb-2"><i class="fas fa-star mr-1"></i>Destaques da Rodada</h4>' +
-                                '<div class="space-y-2">' +
-                                    cartola.destaques.map((j, i) => 
-                                        '<div class="flex items-center gap-3 bg-black/20 p-3 rounded-lg">' +
-                                            '<div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-xs">' + (i+1) + '</div>' +
-                                            '<div class="flex-1"><div class="text-sm font-bold text-white">' + j.nome + '</div><div class="text-[10px] text-slate-400">' + j.posicao + ' - ' + j.clube + '</div></div>' +
-                                            '<div class="text-right"><div class="text-lg font-black ' + (j.pontos >= 0 ? 'text-green-400' : 'text-red-400') + '">' + j.pontos + '</div><div class="text-[9px] text-slate-400">pts</div></div>' +
-                                        '</div>'
-                                    ).join('') +
-                                '</div>'
-                            : '') +
-                            // Jogos da rodada
-                            (cartola.jogos && cartola.jogos.length > 0 ?
-                                '<h4 class="text-xs font-bold text-slate-400 mb-2 mt-4"><i class="fas fa-futbol mr-1"></i>Jogos da Rodada</h4>' +
-                                '<div class="space-y-2">' +
-                                    cartola.jogos.map(j => 
-                                        '<div class="flex items-center gap-2 bg-black/20 p-3 rounded-lg">' +
-                                            '<div class="flex-1 text-right text-xs font-bold text-white">' + j.mandante + '</div>' +
-                                            '<div class="px-3 py-1 rounded bg-black/30 text-sm font-black ' + (j.status === 'Encerrado' ? 'text-white' : 'text-slate-400') + '">' + (j.placarMandante !== undefined ? j.placarMandante + ' x ' + j.placarVisitante : 'vs') + '</div>' +
-                                            '<div class="flex-1 text-left text-xs font-bold text-white">' + j.visitante + '</div>' +
-                                            '<span class="text-[9px] px-2 py-0.5 rounded ' + (j.status === 'Encerrado' ? 'bg-green-500/20 text-green-400' : (j.status === 'Em andamento' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/5 text-slate-500')) + '">' + (j.status || 'Agendado') + '</span>' +
-                                        '</div>'
-                                    ).join('') +
-                                '</div>'
-                            : '') +
-                        '</div>'
-                    : (!isLoading ? '<div class="bg-app-surface p-8 rounded-xl border border-white/5 text-center"><i class="fas fa-futbol text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Clique em Atualizar para carregar as parciais do Cartola FC.</p><p class="text-xs text-slate-600 mt-2">Dados obtidos da API oficial do Cartola FC (api.cartola.globo.com)</p></div>' : '')) +
+                    '<div id="cartola-content">' + Views.CartolaContent() + '</div>' +
                 '</div>';
             },
             
@@ -1488,7 +1492,7 @@
                     case 'market': main.innerHTML = Views.Market(); setTimeout(() => MercadoActions.carregarSeNecessario(), 100); break;
                     case 'prices': main.innerHTML = Views.Prices(); break;
                     case 'montador': main.innerHTML = Views.Montador(); break;
-                    case 'cartola': main.innerHTML = Views.Cartola(); setTimeout(() => CartolaActions.carregar(), 100); break;
+                    case 'cartola': main.innerHTML = Views.Cartola(); if (!Data._cartolaData && !Data._cartolaLoading) setTimeout(() => CartolaActions.carregar(), 100); break;
                     case 'ranking': main.innerHTML = Views.Ranking(); break;
                     case 'admin': main.innerHTML = Views.Admin(); setTimeout(() => { AdminActions.carregarAlertas(); AdminActions.carregarConcursosParaRegen(); }, 500); break;
                 }
@@ -2286,8 +2290,10 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
         // CARTOLA ACTIONS
         const CartolaActions = {
             async carregar() {
+                if (Data._cartolaLoading) return;
                 Data._cartolaLoading = true;
-                if (State.currentRoute === 'cartola') Router.render();
+                const container = document.getElementById('cartola-content');
+                if (container) container.innerHTML = '<div class="bg-app-surface p-12 rounded-xl border border-orange-500/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-orange-500/30 border-t-orange-500 rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Carregando parciais do Cartola...</p></div>';
                 try {
                     // API oficial do Cartola FC
                     const proxyUrl = 'https://us-central1-loteca-pro-mateus-1767825041.cloudfunctions.net/cartolaProxy';
@@ -2354,7 +2360,10 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     Data._cartolaData = { rodada: '-', status: 'Erro ao carregar. A API do Cartola pode estar indisponivel.', destaques: [], jogos: [], mediaGeral: '-', maiorPontuacao: '-', jogosFinalizados: 0, totalJogos: 0 };
                 }
                 Data._cartolaLoading = false;
-                if (State.currentRoute === 'cartola') Router.render();
+                if (State.currentRoute === 'cartola') {
+                    const container = document.getElementById('cartola-content');
+                    if (container) container.innerHTML = Views.CartolaContent();
+                }
             }
         };
 

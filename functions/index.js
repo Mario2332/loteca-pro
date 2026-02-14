@@ -1231,20 +1231,30 @@ REGRAS OBRIGATORIAS:
 // CARTOLA FC - Proxy para API do Cartola (evita CORS)
 // ============================================================
 
-exports.cartolaProxy = onRequest({cors: true, timeoutSeconds: 30, memory: '128MiB'}, async (req, res) => {
+exports.cartolaProxy = onRequest({cors: true, timeoutSeconds: 60, memory: '256MiB'}, async (req, res) => {
   try {
     const { endpoint } = req.body || {};
-    const validEndpoints = [
+    const ep = endpoint || 'mercado/status';
+    
+    // Validar endpoint com whitelist fixa + padrões dinâmicos
+    const fixedEndpoints = [
       'mercado/status',
       'atletas/pontuados',
+      'atletas/mercado',
       'partidas',
       'mercado/destaques',
       'pos-rodada/destaques'
     ];
+    const dynamicPatterns = [
+      /^time\/slug\/[a-zA-Z0-9._-]+$/,
+      /^time\/id\/\d+$/,
+      /^time\/id\/\d+\/\d+$/,
+      /^busca-times\?q=[^&]{2,30}$/
+    ];
     
-    const ep = endpoint || 'mercado/status';
-    if (!validEndpoints.includes(ep)) {
-      return res.status(400).json({ success: false, error: 'Endpoint invalido' });
+    const isValid = fixedEndpoints.includes(ep) || dynamicPatterns.some(p => p.test(ep));
+    if (!isValid) {
+      return res.status(400).json({ success: false, error: 'Endpoint invalido: ' + ep });
     }
     
     const fetch = (await import('node-fetch')).default;
@@ -1262,6 +1272,8 @@ exports.cartolaProxy = onRequest({cors: true, timeoutSeconds: 30, memory: '128Mi
     }
     
     const data = await response.json();
+    // Cache header para reduzir chamadas repetidas
+    res.set('Cache-Control', 'public, max-age=60');
     return res.json({ success: true, data });
   } catch (error) {
     console.error('Erro no proxy Cartola:', error);

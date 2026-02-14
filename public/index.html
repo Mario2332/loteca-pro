@@ -40,6 +40,44 @@
         body { -webkit-tap-highlight-color: transparent; }
         .nav-item { transition: all 0.2s ease; }
         .nav-item.active { background-color: rgba(74, 222, 128, 0.1); color: #4ade80; border-bottom: 2px solid #4ade80; }
+        
+        /* OVERLAY DE PROGRESSO */
+        .progress-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px);
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+        }
+        .progress-card {
+            background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem; padding: 2rem; width: 90%; max-width: 480px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        .step-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; }
+        .step-icon {
+            width: 36px; height: 36px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 14px;
+            flex-shrink: 0; transition: all 0.3s ease;
+        }
+        .step-pending .step-icon { background: #334155; color: #64748b; }
+        .step-active .step-icon { background: #3b82f6; color: white; animation: pulseStep 1.5s infinite; }
+        .step-done .step-icon { background: #22c55e; color: white; }
+        .step-error .step-icon { background: #ef4444; color: white; }
+        .step-pending .step-label { color: #64748b; }
+        .step-active .step-label { color: #93c5fd; font-weight: 600; }
+        .step-done .step-label { color: #86efac; }
+        .step-error .step-label { color: #fca5a5; }
+        .step-sublabel { font-size: 0.7rem; color: #64748b; margin-top: 2px; }
+        .step-active .step-sublabel { color: #60a5fa; }
+        @keyframes pulseStep {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); }
+            50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
+        }
+        .progress-bar-bg { background: #334155; height: 6px; border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill {
+            height: 100%; border-radius: 3px; transition: width 0.5s ease;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #22c55e);
+        }
+        .timer-display { font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body class="bg-app-bg text-app-text font-sans antialiased">
@@ -150,7 +188,8 @@
                     summary: "Concurso marcada por grandes clássicos regionais e derbies internacionais. Equilíbrio total nas estatísticas, com destaque para os confrontos brasileiros da Série A e B.",
                     openDate: "Quinta, 16/01 às 10h",
                     closeDate: "Sábado, 18/01 às 14h",
-                    fullAnalysis: "O concurso 1105 traz uma grade recheada de clássicos que prometem muita emoção. No Brasil, destaque para Flamengo x Palmeiras, que pode definir a liderança do Brasileirão. O Majestoso entre São Paulo e Corinthians também é um dos pontos altos, com o Tricolor invicto no clássico em 2025. Na Europa, o Gran Derbi espanhol entre Sevilla e Betis promete fogo, assim como o duelo italiano entre Napoli e Roma. A concurso exige atenção especial aos jogos da Série B, onde Goiás e Santos aparecem como favoritos em casa, mas zebras são sempre possíveis."
+                    fullAnalysis: "O concurso 1105 traz uma grade recheada de clássicos que prometem muita emoção. No Brasil, destaque para Flamengo x Palmeiras, que pode definir a liderança do Brasileirão. O Majestoso entre São Paulo e Corinthians também é um dos pontos altos, com o Tricolor invicto no clássico em 2025. Na Europa, o Gran Derbi espanhol entre Sevilla e Betis promete fogo, assim como o duelo italiano entre Napoli e Roma. A concurso exige atenção especial aos jogos da Série B, onde Goiás e Santos aparecem como favoritos em casa, mas zebras são sempre possíveis.",
+                    resumoCartela: null
                 },
                 previous: { 
                     id: 1104, 
@@ -298,7 +337,7 @@
                                 <span class="bg-app-primary text-black text-[10px] font-black px-3 py-1 rounded-full uppercase">Aberto</span>
                                 <span class="text-xs font-bold text-slate-400 uppercase">Concurso #${Data.analysis.current.id}</span>
                             </div>
-                            <h2 class="text-4xl font-black text-white mb-2">R$ ${Data.analysis.current.acc}</h2>
+                            <h2 class="text-4xl font-black text-white mb-2">${Data.analysis.current.acc.startsWith('R$') ? Data.analysis.current.acc : 'R$ ' + Data.analysis.current.acc}</h2>
                             <p class="text-sm text-slate-300 mb-4 leading-relaxed">${Data.analysis.current.summary}</p>
                             <div class="grid grid-cols-2 gap-3 mb-4 text-xs">
                                 <div class="bg-black/20 p-3 rounded-lg">
@@ -427,37 +466,137 @@
                 </div>
                 `;
             },
-            AnalysisCurrent: () => `
+            AnalysisCurrent: () => {
+                const renderHistorico = (hist) => {
+                    if (!hist) return '';
+                    return hist.split(',').map(r => {
+                        const t = r.trim().toUpperCase();
+                        if (t === 'V') return '<span class="inline-flex w-6 h-6 rounded-full bg-green-500 text-black text-[10px] font-black items-center justify-center">V</span>';
+                        if (t === 'E') return '<span class="inline-flex w-6 h-6 rounded-full bg-yellow-500 text-black text-[10px] font-black items-center justify-center">E</span>';
+                        return '<span class="inline-flex w-6 h-6 rounded-full bg-red-500 text-black text-[10px] font-black items-center justify-center">D</span>';
+                    }).join('');
+                };
+                const renderRisco = (risco) => {
+                    const r = (risco || '').toLowerCase();
+                    if (r === 'baixo') return '<span class="text-[10px] font-bold text-green-400 bg-green-500/20 border border-green-500/30 px-2 py-0.5 rounded-full">BAIXO</span>';
+                    if (r === 'alto') return '<span class="text-[10px] font-bold text-red-400 bg-red-500/20 border border-red-500/30 px-2 py-0.5 rounded-full">ALTO</span>';
+                    return '<span class="text-[10px] font-bold text-yellow-400 bg-yellow-500/20 border border-yellow-500/30 px-2 py-0.5 rounded-full">MEDIO</span>';
+                };
+                const renderPalpite = (p) => {
+                    if (p === '1') return '<span class="text-[10px] font-black text-green-400 bg-green-500/20 border border-green-500/30 px-2 py-0.5 rounded-lg">COL 1</span>';
+                    if (p === 'X' || p === 'x') return '<span class="text-[10px] font-black text-yellow-400 bg-yellow-500/20 border border-yellow-500/30 px-2 py-0.5 rounded-lg">EMP</span>';
+                    if (p === '2') return '<span class="text-[10px] font-black text-red-400 bg-red-500/20 border border-red-500/30 px-2 py-0.5 rounded-lg">COL 2</span>';
+                    return '';
+                };
+                const renderConfianca = (c) => {
+                    const val = c || 50;
+                    const cor = val >= 75 ? 'bg-green-500' : (val >= 60 ? 'bg-yellow-500' : 'bg-orange-500');
+                    return `<div class="flex items-center gap-2"><div class="flex-1 h-1.5 bg-black/40 rounded-full overflow-hidden"><div class="h-full ${cor} rounded-full" style="width:${val}%"></div></div><span class="text-[10px] font-bold text-slate-400">${val}%</span></div>`;
+                };
+                const jogosChave = (Data.analysis.current.resumoCartela && Data.analysis.current.resumoCartela.jogosChave) || [];
+                return `
                 <div class="animate-fade-in space-y-6">
                     <button onclick="Router.navigate('home')" class="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4">
                         <i class="fas fa-arrow-left"></i> Voltar
                     </button>
                     <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
-                        <h2 class="text-2xl font-black text-white mb-2">Prévia do Concurso #${Data.analysis.current.id}</h2>
-                        <h3 class="text-3xl font-black text-app-primary mb-6">R$ ${Data.analysis.current.acc}</h3>
+                        <h2 class="text-2xl font-black text-white mb-2">Previa do Concurso #${Data.analysis.current.id}</h2>
+                        <h3 class="text-3xl font-black text-app-primary mb-6">${Data.analysis.current.acc.startsWith('R$') ? Data.analysis.current.acc : 'R$ ' + Data.analysis.current.acc}</h3>
                         <div class="prose prose-invert max-w-none mb-6">
                             <p class="text-sm text-slate-300 leading-relaxed">${Data.analysis.current.fullAnalysis}</p>
                         </div>
                         <button onclick="Router.navigate('ai-xray')" class="w-full bg-app-ai hover:bg-purple-600 text-white font-black py-4 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                            <i class="fas fa-microchip"></i> VER RAIO X IA (ANÁLISE PREMIUM)
+                            <i class="fas fa-microchip"></i> VER RAIO X IA (ANALISE PREMIUM)
                         </button>
                     </div>
                     <div class="bg-app-surface p-6 rounded-2xl border border-white/5">
-                        <h3 class="text-lg font-bold text-white mb-4">Análise de Cada Confronto</h3>
+                        <h3 class="text-lg font-bold text-white mb-4"><i class="fas fa-futbol text-app-primary mr-2"></i>Analise de Cada Confronto</h3>
+                        <p class="text-[10px] text-slate-500 mb-4">Clique em cada jogo para ver a analise completa com historico, odds e contexto.</p>
                         <div class="space-y-3">
-                            ${Data.games.map(g => `
-                                <div class="bg-black/20 p-4 rounded-lg hover:bg-black/30 transition-colors">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <span class="text-sm font-bold text-white">${g.home.name} x ${g.away.name}</span>
-                                        <span class="text-xs text-slate-500">${g.tour} • ${g.date}</span>
+                            ${Data.games.map((g, idx) => {
+                                const isChave = jogosChave.includes(g.id);
+                                return `
+                                <div class="bg-black/20 rounded-xl border ${isChave ? 'border-app-ai/40' : 'border-white/5'} overflow-hidden">
+                                    <div class="p-4 cursor-pointer hover:bg-black/30 transition-colors" onclick="document.getElementById('jogo-detail-${g.id}').classList.toggle('hidden');this.querySelector('.fa-chevron-down,.fa-chevron-up').classList.toggle('fa-chevron-down');this.querySelector('.fa-chevron-down,.fa-chevron-up').classList.toggle('fa-chevron-up')">
+                                        <div class="flex justify-between items-center">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-xs font-black text-slate-600 bg-black/30 w-7 h-7 rounded-full flex items-center justify-center">${g.id}</span>
+                                                <div>
+                                                    <div class="text-sm font-bold text-white">${g.home.name} <span class="text-slate-500 mx-1">x</span> ${g.away.name}</div>
+                                                    <div class="text-[10px] text-slate-500">${g.tour} - ${g.date}</div>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                ${g.palpiteIA ? renderPalpite(g.palpiteIA) : ''}
+                                                ${g.riscoZebra ? renderRisco(g.riscoZebra) : ''}
+                                                ${isChave ? '<span class="text-[10px] text-app-ai" title="Jogo-chave"><i class="fas fa-star"></i></span>' : ''}
+                                                <i class="fas fa-chevron-down text-slate-600 text-xs ml-1"></i>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <p class="text-xs text-slate-400 leading-relaxed">${g.analysis}</p>
+                                    <div id="jogo-detail-${g.id}" class="hidden border-t border-white/5 p-4 space-y-3">
+                                        ${g.historicoCasa || g.historicoFora ? `
+                                        <div class="bg-black/20 p-3 rounded-lg">
+                                            <div class="text-[10px] font-bold text-slate-500 uppercase mb-2"><i class="fas fa-chart-line mr-1"></i>Historico (Ultimos 5)</div>
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <div class="text-[10px] text-slate-500 mb-1">${g.home.short}</div>
+                                                    <div class="flex gap-1">${renderHistorico(g.historicoCasa)}</div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <div class="text-[10px] text-slate-500 mb-1">${g.away.short}</div>
+                                                    <div class="flex gap-1 justify-end">${renderHistorico(g.historicoFora)}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        ` : ''}
+                                        ${g.consensoMercado ? `
+                                        <div class="bg-black/20 p-3 rounded-lg">
+                                            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1"><i class="fas fa-chart-bar mr-1"></i>Consenso do Mercado</div>
+                                            <p class="text-xs text-slate-400 leading-relaxed">${g.consensoMercado}</p>
+                                        </div>
+                                        ` : ''}
+                                        ${g.contextoLocal ? `
+                                        <div class="bg-black/20 p-3 rounded-lg">
+                                            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1"><i class="fas fa-newspaper mr-1"></i>Contexto Local</div>
+                                            <p class="text-xs text-slate-400 leading-relaxed">${g.contextoLocal}</p>
+                                        </div>
+                                        ` : ''}
+                                        ${g.analiseTecnica ? `
+                                        <div class="bg-black/20 p-3 rounded-lg">
+                                            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1"><i class="fas fa-microscope mr-1"></i>Analise Tecnica</div>
+                                            <p class="text-xs text-slate-400 leading-relaxed">${g.analiseTecnica}</p>
+                                        </div>
+                                        ` : ''}
+                                        ${g.h2h ? `
+                                        <div class="bg-black/20 p-3 rounded-lg">
+                                            <div class="text-[10px] font-bold text-slate-500 uppercase mb-1"><i class="fas fa-exchange-alt mr-1"></i>Confronto Direto (H2H)</div>
+                                            <p class="text-xs text-slate-400 leading-relaxed">${g.h2h}</p>
+                                        </div>
+                                        ` : ''}
+                                        <div class="bg-black/20 p-3 rounded-lg">
+                                            <p class="text-xs text-slate-300 leading-relaxed"><i class="fas fa-microchip text-app-ai mr-1"></i>${g.analysis}</p>
+                                        </div>
+                                        ${g.confianca ? `
+                                        <div class="flex items-center justify-between gap-3 px-1">
+                                            <span class="text-[10px] text-slate-500">Confianca</span>
+                                            <div class="w-32">${renderConfianca(g.confianca)}</div>
+                                        </div>
+                                        ` : ''}
+                                        ${g.fontesUsadas ? `
+                                        <div class="px-1">
+                                            <div class="text-[10px] text-slate-600"><i class="fas fa-link mr-1"></i>Fontes: ${g.fontesUsadas}</div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 </div>
-            `,
+                `;
+            },
             Palpites: () => {
                 const data = Store.getAppData();
                 const isSubmitted = data.submitted;
@@ -541,7 +680,159 @@
                     </div>
                 `;
             },
-            AiXray: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Raio X IA - Premium</h2><div class="bg-app-surface p-6 rounded-2xl border border-violet-500/30"><p class="text-sm text-slate-400">Análise de inteligência artificial em processamento...</p></div></div>`,
+            AiXray: () => {
+                const rc = Data.analysis.current.resumoCartela;
+                const palpites = rc && rc.palpites ? rc.palpites.split(',') : [];
+                const duplos = rc && rc.duplos ? rc.duplos : [];
+                const triplos = rc && rc.triplos ? rc.triplos : [];
+                const estrategia = rc && rc.estrategia ? rc.estrategia : '';
+                const jogosChave = rc && rc.jogosChave ? rc.jogosChave : [];
+                
+                const renderPalpiteBadge = (p) => {
+                    const v = (p || '').trim();
+                    if (v === '1') return '<span class="font-black text-green-400">1</span>';
+                    if (v === 'X' || v === 'x') return '<span class="font-black text-yellow-400">X</span>';
+                    if (v === '2') return '<span class="font-black text-red-400">2</span>';
+                    return '<span class="text-slate-500">-</span>';
+                };
+
+                // Calcular custo
+                let numApostas = 1;
+                duplos.forEach(() => numApostas *= 2);
+                triplos.forEach(() => numApostas *= 3);
+                const custoBase = 3.00; // valor minimo da aposta Loteca
+                const custoTotal = (numApostas * custoBase).toFixed(2);
+
+                return `
+                <div class="animate-fade-in space-y-6">
+                    <button onclick="Router.navigate('home')" class="text-xs text-slate-400 hover:text-white flex items-center gap-2 mb-4">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                    
+                    <div class="bg-gradient-to-br from-violet-900/30 to-app-bg p-6 rounded-2xl border border-app-ai/30 shadow-2xl">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-app-ai/20 flex items-center justify-center">
+                                <i class="fas fa-microchip text-app-ai text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-black text-white">Raio X IA</h2>
+                                <p class="text-[10px] text-slate-400">Concurso #${Data.analysis.current.id} - Analise Premium</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-slate-300 leading-relaxed">${Data.analysis.current.fullAnalysis}</p>
+                    </div>
+
+                    ${palpites.length > 0 ? `
+                    <div class="bg-app-surface p-6 rounded-2xl border border-app-primary/20">
+                        <h3 class="text-lg font-bold text-white mb-4"><i class="fas fa-list-ol text-app-primary mr-2"></i>Cartela Recomendada</h3>
+                        <div class="bg-black/20 rounded-xl overflow-hidden">
+                            ${Data.games.map((g, idx) => {
+                                const palpite = palpites[idx] || '-';
+                                const isDuplo = duplos.find(d => d.jogo === g.id);
+                                const isTriplo = triplos.find(t => t.jogo === g.id);
+                                const isChave = jogosChave.includes(g.id);
+                                let badge = '';
+                                if (isTriplo) badge = '<span class="text-[9px] font-bold text-red-400 bg-red-500/20 px-1.5 py-0.5 rounded">TRIPLO</span>';
+                                else if (isDuplo) badge = '<span class="text-[9px] font-bold text-yellow-400 bg-yellow-500/20 px-1.5 py-0.5 rounded">DUPLO ' + isDuplo.opcoes + '</span>';
+                                return `
+                                <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/5 ${isChave ? 'bg-app-ai/5' : ''}">
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <span class="text-[10px] font-bold text-slate-600 w-5">${g.id}</span>
+                                        <span class="text-xs text-white truncate">${g.home.short} x ${g.away.short}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        ${badge}
+                                        ${isChave ? '<i class="fas fa-star text-[10px] text-app-ai"></i>' : ''}
+                                        <div class="w-8 text-center text-sm">${renderPalpiteBadge(palpite)}</div>
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${duplos.length > 0 || triplos.length > 0 ? `
+                    <div class="bg-app-surface p-6 rounded-2xl border border-yellow-500/20">
+                        <h3 class="text-lg font-bold text-white mb-4"><i class="fas fa-layer-group text-yellow-400 mr-2"></i>Duplos e Triplos</h3>
+                        <div class="space-y-3">
+                            ${duplos.map(d => `
+                            <div class="bg-black/20 p-3 rounded-lg border-l-4 border-yellow-500">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-bold text-yellow-400">DUPLO - Jogo ${d.jogo} (${d.opcoes})</span>
+                                    <span class="text-[10px] text-slate-500">${Data.games[d.jogo-1] ? Data.games[d.jogo-1].home.short + ' x ' + Data.games[d.jogo-1].away.short : ''}</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">${d.motivo}</p>
+                            </div>
+                            `).join('')}
+                            ${triplos.map(t => `
+                            <div class="bg-black/20 p-3 rounded-lg border-l-4 border-red-500">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-bold text-red-400">TRIPLO - Jogo ${t.jogo} (${t.opcoes})</span>
+                                    <span class="text-[10px] text-slate-500">${Data.games[t.jogo-1] ? Data.games[t.jogo-1].home.short + ' x ' + Data.games[t.jogo-1].away.short : ''}</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400">${t.motivo}</p>
+                            </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${estrategia ? `
+                    <div class="bg-app-surface p-6 rounded-2xl border border-app-primary/20">
+                        <h3 class="text-lg font-bold text-white mb-3"><i class="fas fa-chess text-app-primary mr-2"></i>Estrategia de Aposta</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed mb-4">${estrategia}</p>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-black/20 p-3 rounded-lg text-center">
+                                <div class="text-lg font-black text-app-primary">${numApostas}</div>
+                                <div class="text-[10px] text-slate-500">Apostas</div>
+                            </div>
+                            <div class="bg-black/20 p-3 rounded-lg text-center">
+                                <div class="text-lg font-black text-yellow-400">${duplos.length}D/${triplos.length}T</div>
+                                <div class="text-[10px] text-slate-500">Duplos/Triplos</div>
+                            </div>
+                            <div class="bg-black/20 p-3 rounded-lg text-center">
+                                <div class="text-lg font-black text-white">R$ ${custoTotal}</div>
+                                <div class="text-[10px] text-slate-500">Custo Est.</div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${jogosChave.length > 0 ? `
+                    <div class="bg-app-surface p-6 rounded-2xl border border-app-ai/20">
+                        <h3 class="text-lg font-bold text-white mb-3"><i class="fas fa-star text-app-ai mr-2"></i>Jogos-Chave da Rodada</h3>
+                        <p class="text-[10px] text-slate-500 mb-3">Jogos que podem definir o resultado da cartela. Preste atencao especial nestes confrontos.</p>
+                        <div class="space-y-2">
+                            ${jogosChave.map(jId => {
+                                const g = Data.games.find(game => game.id === jId);
+                                if (!g) return '';
+                                return `
+                                <div class="bg-black/20 p-3 rounded-lg flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-app-ai"><i class="fas fa-star"></i></span>
+                                        <span class="text-sm font-bold text-white">${g.home.name} x ${g.away.name}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        ${g.palpiteIA ? (g.palpiteIA === '1' ? '<span class="text-xs text-green-400 font-bold">COL 1</span>' : (g.palpiteIA === 'X' ? '<span class="text-xs text-yellow-400 font-bold">EMP</span>' : '<span class="text-xs text-red-400 font-bold">COL 2</span>')) : ''}
+                                        ${g.riscoZebra ? '<span class="text-[10px] text-slate-500">Zebra: ' + g.riscoZebra + '</span>' : ''}
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : `
+                    <div class="bg-app-surface p-6 rounded-2xl border border-violet-500/30 text-center">
+                        <i class="fas fa-microchip text-app-ai text-3xl mb-3"></i>
+                        <p class="text-sm text-slate-400">Analise premium sera gerada quando o concurso for publicado com a nova versao da IA.</p>
+                        <p class="text-[10px] text-slate-500 mt-2">Use "Regenerar Analise IA" no painel admin para atualizar.</p>
+                    </div>
+                    `}
+                </div>
+                `;
+            },
+
             Market: () => `<div class="animate-fade-in"><h2 class="text-white font-bold text-xl mb-4">Mercado da Bola</h2><div class="bg-app-surface p-6 rounded-2xl border border-white/5"><p class="text-sm text-slate-400">Últimas transferências e rumores...</p></div></div>`,
             
             Admin: () => {
@@ -581,6 +872,21 @@
                     </div>
                     
                     <div id="admin-feedback" class="hidden bg-green-500/20 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm"></div>
+                    
+                    <!-- REGENERAR ANÁLISE IA -->
+                    <div class="bg-app-surface p-6 rounded-xl border border-violet-500/20">
+                        <h3 class="text-white font-bold mb-4"><i class="fas fa-robot mr-2 text-violet-400"></i>Regenerar Análise IA</h3>
+                        <p class="text-sm text-slate-400 mb-4">Se a análise não foi gerada corretamente, selecione o concurso e clique para regenerar.</p>
+                        <div class="flex gap-3">
+                            <select id="regen-concurso" class="flex-1 bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm">
+                                <option value="">Selecione o concurso...</option>
+                            </select>
+                            <button onclick="AdminActions.regenerarAnalise()" class="px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white font-bold rounded-lg transition-all">
+                                <i class="fas fa-sync-alt mr-2"></i>REGENERAR
+                            </button>
+                        </div>
+                        <div id="regen-feedback" class="hidden mt-3 p-3 rounded-lg text-sm"></div>
+                    </div>
                     
                     <!-- PREVIEW E PUBLICAÇÃO -->
                     <div id="preview-container" class="hidden">
@@ -748,7 +1054,7 @@
                     case 'market': main.innerHTML = Views.Market(); break;
                     case 'prices': main.innerHTML = Views.Prices(); break;
                     case 'ranking': main.innerHTML = Views.Ranking(); break;
-                    case 'admin': main.innerHTML = Views.Admin(); break;
+                    case 'admin': main.innerHTML = Views.Admin(); setTimeout(() => { AdminActions.carregarAlertas(); AdminActions.carregarConcursosParaRegen(); }, 500); break;
                 }
                 if(State.modal === 'login') {
                     const div = document.createElement('div');
@@ -814,6 +1120,156 @@
             }
             return limpo;
         }
+
+        // === SISTEMA DE PROGRESSO VISUAL ===
+        const ProgressOverlay = {
+            _el: null,
+            _timer: null,
+            _seconds: 0,
+            _steps: [],
+            _currentStep: 0,
+
+            show(title, steps) {
+                this._seconds = 0;
+                this._currentStep = 0;
+                this._steps = steps;
+                this.remove();
+
+                const stepsHtml = steps.map((s, i) => `
+                    <div class="step-item step-pending" id="prog-step-${i}">
+                        <div class="step-icon"><i class="fas ${s.icon}"></i></div>
+                        <div>
+                            <div class="step-label text-sm">${s.label}</div>
+                            <div class="step-sublabel" id="prog-sub-${i}">${s.sublabel || 'Aguardando...'}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                const html = `
+                    <div class="progress-overlay" id="progress-overlay">
+                        <div class="progress-card">
+                            <div class="text-center mb-5">
+                                <div class="text-2xl mb-1"><i class="fas fa-robot text-violet-400"></i></div>
+                                <h3 class="text-white font-bold text-lg">${title}</h3>
+                                <p class="text-slate-400 text-xs mt-1">Nao feche esta pagina</p>
+                            </div>
+                            <div class="progress-bar-bg mb-4">
+                                <div class="progress-bar-fill" id="prog-bar" style="width:0%"></div>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-xs text-slate-500" id="prog-percent">0%</span>
+                                <span class="text-xs text-slate-400 timer-display" id="prog-timer">00:00</span>
+                            </div>
+                            <div class="space-y-0" id="prog-steps">${stepsHtml}</div>
+                            <div id="prog-result" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', html);
+                this._el = document.getElementById('progress-overlay');
+                this._timer = setInterval(() => {
+                    this._seconds++;
+                    const m = String(Math.floor(this._seconds / 60)).padStart(2, '0');
+                    const s = String(this._seconds % 60).padStart(2, '0');
+                    const te = document.getElementById('prog-timer');
+                    if (te) te.textContent = `${m}:${s}`;
+                }, 1000);
+                this.activateStep(0);
+            },
+
+            activateStep(index, sublabel) {
+                this._currentStep = index;
+                const total = this._steps.length;
+                const pct = Math.round((index / total) * 100);
+                const bar = document.getElementById('prog-bar');
+                const pctEl = document.getElementById('prog-percent');
+                if (bar) bar.style.width = pct + '%';
+                if (pctEl) pctEl.textContent = pct + '%';
+
+                for (let i = 0; i < total; i++) {
+                    const el = document.getElementById(`prog-step-${i}`);
+                    if (!el) continue;
+                    if (i < index) {
+                        el.className = 'step-item step-done';
+                        el.querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
+                    } else if (i === index) {
+                        el.className = 'step-item step-active';
+                        el.querySelector('.step-icon').innerHTML = `<i class="fas ${this._steps[i].icon}"></i>`;
+                        if (sublabel) {
+                            const sub = document.getElementById(`prog-sub-${i}`);
+                            if (sub) sub.textContent = sublabel;
+                        }
+                    } else {
+                        el.className = 'step-item step-pending';
+                    }
+                }
+            },
+
+            updateSublabel(index, text) {
+                const sub = document.getElementById(`prog-sub-${index}`);
+                if (sub) sub.textContent = text;
+            },
+
+            completeStep(index) {
+                const el = document.getElementById(`prog-step-${index}`);
+                if (el) {
+                    el.className = 'step-item step-done';
+                    el.querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
+                }
+            },
+
+            errorStep(index, msg) {
+                const el = document.getElementById(`prog-step-${index}`);
+                if (el) {
+                    el.className = 'step-item step-error';
+                    el.querySelector('.step-icon').innerHTML = '<i class="fas fa-times"></i>';
+                    const sub = document.getElementById(`prog-sub-${index}`);
+                    if (sub) sub.textContent = msg || 'Erro';
+                }
+            },
+
+            finish(success, message) {
+                if (this._timer) { clearInterval(this._timer); this._timer = null; }
+                const bar = document.getElementById('prog-bar');
+                const pctEl = document.getElementById('prog-percent');
+                if (bar) bar.style.width = '100%';
+                if (pctEl) pctEl.textContent = '100%';
+
+                // Marcar todas as steps restantes como done
+                for (let i = 0; i <= this._currentStep; i++) {
+                    this.completeStep(i);
+                }
+
+                const res = document.getElementById('prog-result');
+                if (res) {
+                    res.classList.remove('hidden');
+                    if (success) {
+                        res.className = 'mt-4 p-3 rounded-lg text-sm text-center bg-green-500/20 border border-green-500/30 text-green-300';
+                        res.innerHTML = `<i class="fas fa-check-circle mr-2"></i>${message}`;
+                    } else {
+                        res.className = 'mt-4 p-3 rounded-lg text-sm text-center bg-red-500/20 border border-red-500/30 text-red-300';
+                        res.innerHTML = `<i class="fas fa-exclamation-circle mr-2"></i>${message}`;
+                    }
+                }
+
+                // Auto-fechar após 3 segundos se sucesso
+                if (success) {
+                    setTimeout(() => this.remove(), 3000);
+                } else {
+                    // Adicionar botão fechar se erro
+                    if (res) {
+                        res.innerHTML += `<br><button onclick="ProgressOverlay.remove()" class="mt-2 px-4 py-1 bg-slate-600 hover:bg-slate-500 text-white text-xs rounded-lg">FECHAR</button>`;
+                    }
+                }
+            },
+
+            remove() {
+                if (this._timer) { clearInterval(this._timer); this._timer = null; }
+                const el = document.getElementById('progress-overlay');
+                if (el) el.remove();
+                this._el = null;
+            }
+        };
 
         const AIAnalyzer = {
             async analisarConcurso(dados) {
@@ -884,10 +1340,25 @@
                     console.log('Detalhada limpa:', detalhada.substring(0, 100));
                     console.log('Análises por jogo:', analiseJogos.length);
                     
+                    // Extrair resumoCartela se disponível (v2)
+                    let resumoCartela = result.analise.resumoCartela || null;
+                    let estatisticas = result.analise.estatisticas || null;
+                    
+                    // Extrair fontes e buscas do Google Search Grounding (v3)
+                    let fontes = result.analise.fontes || [];
+                    let buscasRealizadas = result.analise.buscasRealizadas || [];
+                    
+                    console.log('Fontes do Grounding:', fontes.length);
+                    console.log('Buscas realizadas:', buscasRealizadas.length);
+                    
                     return {
                         resumo: resumo,
                         analiseDetalhada: detalhada,
-                        analiseJogos: analiseJogos
+                        analiseJogos: analiseJogos,
+                        resumoCartela: resumoCartela,
+                        estatisticas: estatisticas,
+                        fontes: fontes,
+                        buscasRealizadas: buscasRealizadas
                     };
                     
                 } catch (error) {
@@ -1000,7 +1471,7 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     // Carregar analiseJogos se disponível
                     const analiseJogosArr = (concurso.analise && concurso.analise.analiseJogos) ? concurso.analise.analiseJogos : [];
                     
-                    // Converter dados do Firestore para formato do Data.games
+                    // Converter dados do Firestore para formato do Data.games (v2 - com dados avançados)
                     Data.games = concurso.jogos.map((jogo, idx) => {
                         // Buscar análise individual deste jogo
                         const analiseJogo = analiseJogosArr.find(a => a.jogo === (idx + 1)) || analiseJogosArr[idx];
@@ -1020,7 +1491,18 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                             },
                             probs: { h: 33, d: 34, a: 33 },
                             comm: { h: 33, d: 34, a: 33 },
-                            analysis: textoAnalise
+                            analysis: textoAnalise,
+                            // Novos campos v2 - Análise Avançada
+                            historicoCasa: analiseJogo ? (analiseJogo.historicoCasa || '') : '',
+                            historicoFora: analiseJogo ? (analiseJogo.historicoFora || '') : '',
+                            consensoMercado: analiseJogo ? (analiseJogo.consensoMercado || '') : '',
+                            contextoLocal: analiseJogo ? (analiseJogo.contextoLocal || '') : '',
+                            analiseTecnica: analiseJogo ? (analiseJogo.analiseTecnica || '') : '',
+                            palpiteIA: analiseJogo ? (analiseJogo.palpite || '') : '',
+                            confianca: analiseJogo ? (analiseJogo.confianca || 0) : 0,
+                            riscoZebra: analiseJogo ? (analiseJogo.riscoZebra || '') : '',
+                            h2h: analiseJogo ? (analiseJogo.h2h || '') : '',
+                            fontesUsadas: analiseJogo ? (analiseJogo.fontesUsadas || '') : ''
                         };
                     });
                     
@@ -1043,6 +1525,11 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                         if (typeof d === 'object' && d.detalhada) { if (!r || typeof r !== 'string') r = d.resumo; d = d.detalhada; }
                         Data.analysis.current.summary = typeof r === 'string' ? r : (concurso.analise.resumo || '');
                         Data.analysis.current.fullAnalysis = typeof d === 'string' ? d : (concurso.analise.detalhada || '');
+                        
+                        // Carregar resumoCartela (v2)
+                        if (concurso.analise.resumoCartela) {
+                            Data.analysis.current.resumoCartela = concurso.analise.resumoCartela;
+                        }
                     } else {
                         // Fallback se não tiver análise
                         if (concurso.dataConcurso) {
@@ -1155,7 +1642,7 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     
                     // Atualizar estimativa de prêmio do próximo concurso (vem dos resultados)
                     if (concurso.estimativaPremio) {
-                        Data.analysis.current.acc = `R$ ${concurso.estimativaPremio}`;
+                        Data.analysis.current.acc = concurso.estimativaPremio;
                     }
                     
                     console.log(`Resultados do concurso ${concurso.concurso} carregados com sucesso!`);
@@ -1353,19 +1840,75 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     return;
                 }
                 
+                const dados = window.dadosPreview;
+                const db = firebase.firestore();
+                const tipoLabel = dados.tipo === 'programacao' ? 'Programacao' : 'Resultados';
+                const nJogos = (dados.jogos || []).length;
+
+                // Definir etapas do progresso
+                const steps = [
+                    { icon: 'fa-clipboard-check', label: 'Validando dados', sublabel: `${nJogos} jogos do concurso ${dados.concurso}` },
+                    { icon: 'fa-robot', label: 'Gerando analise com IA', sublabel: 'Conectando ao Gemini...' },
+                    { icon: 'fa-database', label: 'Salvando no banco de dados', sublabel: 'Aguardando...' },
+                    { icon: 'fa-globe', label: 'Publicando no site', sublabel: 'Aguardando...' }
+                ];
+
+                ProgressOverlay.show(`Publicando ${tipoLabel} #${dados.concurso}`, steps);
+
                 try {
-                    const dados = window.dadosPreview;
-                    const db = firebase.firestore();
-                    
-                    // Mostrar feedback de processamento
-                    const feedback = document.getElementById('admin-feedback');
-                    feedback.textContent = '⏳ Gerando análise com IA...';
-                    feedback.className = 'mt-4 p-4 bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-300 text-sm';
-                    
-                    // Gerar análise com IA
-                    const analise = await AIAnalyzer.analisarConcurso(dados);
-                    
-                    // Copiar de concursos para concursos_publicados
+                    // ETAPA 1: Validar dados
+                    await new Promise(r => setTimeout(r, 500));
+                    ProgressOverlay.completeStep(0);
+
+                    // ETAPA 2: Gerar analise com IA (com retry)
+                    ProgressOverlay.activateStep(1, 'Enviando jogos para analise...');
+                    let analise = null;
+                    let tentativas = 0;
+                    const maxTentativas = 3;
+
+                    while (tentativas < maxTentativas) {
+                        tentativas++;
+                        try {
+                            ProgressOverlay.updateSublabel(1, `Tentativa ${tentativas}/${maxTentativas} - Analisando ${nJogos} jogos...`);
+                            analise = await AIAnalyzer.analisarConcurso(dados);
+
+                            if (!analise.resumo.includes('Dados oficiais da Caixa')) {
+                                ProgressOverlay.updateSublabel(1, `Analise gerada com sucesso!`);
+                                break;
+                            }
+
+                            console.log(`Tentativa ${tentativas} retornou fallback, tentando novamente...`);
+                            if (tentativas < maxTentativas) {
+                                ProgressOverlay.updateSublabel(1, `Tentativa ${tentativas} incompleta. Aguardando 5s para tentar novamente...`);
+                                await new Promise(r => setTimeout(r, 5000));
+                            }
+                        } catch (retryError) {
+                            console.error(`Tentativa ${tentativas} falhou:`, retryError);
+                            if (tentativas < maxTentativas) {
+                                ProgressOverlay.updateSublabel(1, `Tentativa ${tentativas} falhou. Aguardando 5s...`);
+                                await new Promise(r => setTimeout(r, 5000));
+                            }
+                        }
+                    }
+
+                    if (!analise) {
+                        analise = {
+                            resumo: `Concurso ${dados.concurso} - Dados oficiais da Caixa`,
+                            analiseDetalhada: 'Analise indisponivel no momento. Use o botao Regenerar Analise IA para tentar novamente.',
+                            analiseJogos: []
+                        };
+                    }
+
+                    const analiseOk = !analise.resumo.includes('Dados oficiais da Caixa');
+                    if (analiseOk) {
+                        ProgressOverlay.completeStep(1);
+                    } else {
+                        ProgressOverlay.errorStep(1, 'IA indisponivel - publicando sem analise avancada');
+                    }
+
+                    // ETAPA 3: Salvar no Firestore
+                    ProgressOverlay.activateStep(2, 'Gravando dados no Firestore...');
+
                     const docData = {
                         concurso: dados.concurso,
                         tipo: dados.tipo,
@@ -1377,28 +1920,35 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                             resumo: analise.resumo,
                             detalhada: analise.analiseDetalhada,
                             analiseJogos: analise.analiseJogos || [],
-                            geradaEm: new Date().toISOString()
+                            resumoCartela: analise.resumoCartela || null,
+                            estatisticas: analise.estatisticas || null,
+                            fontes: analise.fontes || [],
+                            buscasRealizadas: analise.buscasRealizadas || [],
+                            geradaEm: new Date().toISOString(),
+                            versao: 'v4'
                         }
                     };
-                    
-                    // Adicionar campos específicos de programação
+
                     if (dados.tipo === 'programacao') {
                         if (dados.dataConcurso) docData.dataConcurso = dados.dataConcurso;
                         if (dados.periodoApostas) docData.periodoApostas = dados.periodoApostas;
                         if (dados.realizacaoJogos) docData.realizacaoJogos = dados.realizacaoJogos;
                     }
-                    
-                    // Adicionar campos específicos de resultados
+
                     if (dados.tipo === 'resultados' || dados.tipo === 'resultado') {
                         if (dados.estimativaPremio) docData.estimativaPremio = dados.estimativaPremio;
                         if (dados.ganhadores14 !== undefined) docData.ganhadores14 = dados.ganhadores14;
                         if (dados.ganhadores13) docData.ganhadores13 = dados.ganhadores13;
                         if (dados.acumulou !== undefined) docData.acumulou = dados.acumulou;
                     }
-                    
+
                     await db.collection('concursos_publicados').doc(dados.concurso).set(docData);
-                    
-                    // Atualizar config/atual
+                    ProgressOverlay.updateSublabel(2, 'Dados salvos com sucesso!');
+                    ProgressOverlay.completeStep(2);
+
+                    // ETAPA 4: Atualizar config e publicar
+                    ProgressOverlay.activateStep(3, 'Atualizando configuracao do site...');
+
                     const configUpdate = {};
                     if (dados.tipo === 'programacao') {
                         configUpdate.concursoProgramacao = dados.concurso;
@@ -1406,24 +1956,121 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                         configUpdate.concursoResultado = dados.concurso;
                     }
                     configUpdate.ultimaAtualizacao = firebase.firestore.FieldValue.serverTimestamp();
-                    
                     await db.collection('config').doc('atual').set(configUpdate, { merge: true });
-                    
-                    // Feedback
-                    alert(`✓ Concurso ${dados.concurso} publicado com sucesso!\n\nOs dados já estão visíveis para todos os usuários.`);
-                    
-                    // Limpar preview
+
+                    ProgressOverlay.completeStep(3);
+
+                    // CONCLUIDO
+                    if (analiseOk) {
+                        ProgressOverlay.finish(true, `Concurso ${dados.concurso} publicado com analise IA completa!`);
+                    } else {
+                        ProgressOverlay.finish(true, `Concurso ${dados.concurso} publicado! Analise IA parcial - use Regenerar para completar.`);
+                    }
+
                     AdminActions.cancelarPreview();
                     window.dadosPreview = null;
-                    
+
                 } catch (error) {
-                    alert('✗ Erro ao publicar: ' + error.message);
+                    console.error('Erro ao publicar:', error);
+                    ProgressOverlay.errorStep(ProgressOverlay._currentStep, error.message);
+                    ProgressOverlay.finish(false, `Erro ao publicar: ${error.message}`);
                 }
             },
             
             cancelarPreview() {
                 document.getElementById('preview-container').classList.add('hidden');
                 window.dadosPreview = null;
+            },
+            
+            async carregarConcursosParaRegen() {
+                try {
+                    const db = firebase.firestore();
+                    const snapshot = await db.collection('concursos_publicados').orderBy('concurso', 'desc').limit(10).get();
+                    const select = document.getElementById('regen-concurso');
+                    if (!select) return;
+                    select.innerHTML = '<option value="">Selecione o concurso...</option>';
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        const tipo = data.tipo === 'programacao' ? 'Programação' : 'Resultados';
+                        const temAnalise = data.analise && data.analise.resumo && !data.analise.resumo.includes('Dados oficiais');
+                        const status = temAnalise ? '✅' : '⚠️';
+                        select.innerHTML += `<option value="${doc.id}">${status} #${doc.id} - ${tipo}</option>`;
+                    });
+                } catch (error) {
+                    console.error('Erro ao carregar concursos:', error);
+                }
+            },
+            
+            async regenerarAnalise() {
+                const select = document.getElementById('regen-concurso');
+                const concursoId = select ? select.value : '';
+                
+                if (!concursoId) {
+                    alert('Selecione um concurso!');
+                    return;
+                }
+
+                const steps = [
+                    { icon: 'fa-search', label: 'Buscando dados do concurso', sublabel: `Concurso ${concursoId}` },
+                    { icon: 'fa-robot', label: 'Gerando analise com IA', sublabel: 'Conectando ao Gemini...' },
+                    { icon: 'fa-database', label: 'Atualizando banco de dados', sublabel: 'Aguardando...' },
+                    { icon: 'fa-sync-alt', label: 'Recarregando dados do site', sublabel: 'Aguardando...' }
+                ];
+
+                ProgressOverlay.show(`Regenerando Analise #${concursoId}`, steps);
+
+                try {
+                    // ETAPA 1: Buscar dados
+                    const db = firebase.firestore();
+                    const doc = await db.collection('concursos_publicados').doc(concursoId).get();
+                    if (!doc.exists) throw new Error('Concurso nao encontrado!');
+                    const dados = doc.data();
+                    const nJogos = (dados.jogos || []).length;
+                    ProgressOverlay.updateSublabel(0, `${nJogos} jogos encontrados`);
+                    ProgressOverlay.completeStep(0);
+
+                    // ETAPA 2: Gerar analise
+                    ProgressOverlay.activateStep(1, `Analisando ${nJogos} jogos com Gemini...`);
+                    const analise = await AIAnalyzer.analisarConcurso(dados);
+
+                    if (analise.resumo.includes('Dados oficiais da Caixa')) {
+                        ProgressOverlay.errorStep(1, 'IA nao conseguiu gerar a analise');
+                        throw new Error('A IA nao conseguiu gerar a analise. Tente novamente em alguns minutos.');
+                    }
+                    ProgressOverlay.updateSublabel(1, 'Analise completa gerada!');
+                    ProgressOverlay.completeStep(1);
+
+                    // ETAPA 3: Atualizar Firestore
+                    ProgressOverlay.activateStep(2, 'Salvando analise no Firestore...');
+                    await db.collection('concursos_publicados').doc(concursoId).update({
+                        'analise.resumo': analise.resumo,
+                        'analise.detalhada': analise.analiseDetalhada,
+                        'analise.analiseJogos': analise.analiseJogos || [],
+                        'analise.resumoCartela': analise.resumoCartela || null,
+                        'analise.estatisticas': analise.estatisticas || null,
+                        'analise.fontes': analise.fontes || [],
+                        'analise.buscasRealizadas': analise.buscasRealizadas || [],
+                        'analise.geradaEm': new Date().toISOString(),
+                        'analise.modelo': 'gemini-2.0-flash',
+                        'analise.versao': 'v4'
+                    });
+                    ProgressOverlay.updateSublabel(2, 'Dados atualizados!');
+                    ProgressOverlay.completeStep(2);
+
+                    // ETAPA 4: Recarregar dados
+                    ProgressOverlay.activateStep(3, 'Recarregando pagina...');
+                    await DataLoader.carregarConcursoAtual();
+                    await DataLoader.carregarConcursoAnterior();
+                    AdminActions.carregarConcursosParaRegen();
+                    ProgressOverlay.completeStep(3);
+
+                    ProgressOverlay.finish(true, `Analise do concurso ${concursoId} regenerada com sucesso!`);
+
+                } catch (error) {
+                    console.error('Erro ao regenerar:', error);
+                    ProgressOverlay.errorStep(ProgressOverlay._currentStep, error.message);
+                    ProgressOverlay.finish(false, `Erro: ${error.message}`);
+                }
             }
         };
 
@@ -1440,9 +2087,12 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
             DataLoader.carregarConcursoAtual();
             DataLoader.carregarConcursoAnterior();
             
-            // Carregar alertas se estiver na página admin
+            // Carregar alertas e concursos se estiver na página admin
             if (State.currentRoute === 'admin' && Auth.user) {
-                setTimeout(() => AdminActions.carregarAlertas(), 1000);
+                setTimeout(() => {
+                    AdminActions.carregarAlertas();
+                    AdminActions.carregarConcursosParaRegen();
+                }, 1000);
             }
         });
     </script>

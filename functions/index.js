@@ -4,7 +4,7 @@ const {defineSecret} = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const axios = require('axios');
 
-// Definir secret para a chave do Gemini
+// Definir secrets
 const geminiApiKey = defineSecret('GEMINI_API_KEY');
 
 admin.initializeApp();
@@ -12,6 +12,10 @@ const db = admin.firestore();
 
 // E-mail do administrador para receber alertas
 const ADMIN_EMAIL = 'mateusmachado11m@gmail.com';
+
+// API-Football config (plano Free - usado para H2H)
+const API_FOOTBALL_KEY = 'f25bf6f2f1e7136176772374585a3b23';
+const API_FOOTBALL_URL = 'https://v3.football.api-sports.io';
 
 /**
  * Cloud Function que monitora mudanças no site da Loteca
@@ -200,260 +204,734 @@ exports.buscarAlertas = onRequest({cors: true}, async (req, res) => {
     }
 });
 
+// ============================================================
+// ANÁLISE COM IA - VERSÃO 4 (NUNCA FALHA - 3 níveis de fallback)
+// ============================================================
+
 /**
- * Cloud Function para gerar análise com IA (Gemini)
- * Usa API v1 com modelo gemini-2.0-flash
- * Gera: resumo curto, análise detalhada, e análise individual por jogo
+ * Busca H2H (confronto direto) entre dois times via API-Football
  */
-exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey]}, async (req, res) => {
+async function buscarH2H(timeCasa, timeFora) {
   try {
-    console.log('=== INÍCIO gerarAnaliseIA ===');
+    const [resCasa, resFora] = await Promise.all([
+      axios.get(`${API_FOOTBALL_URL}/teams`, {
+        headers: { 'x-apisports-key': API_FOOTBALL_KEY },
+        params: { search: timeCasa },
+        timeout: 5000
+      }),
+      axios.get(`${API_FOOTBALL_URL}/teams`, {
+        headers: { 'x-apisports-key': API_FOOTBALL_KEY },
+        params: { search: timeFora },
+        timeout: 5000
+      })
+    ]);
+
+    const idCasa = resCasa.data?.response?.[0]?.team?.id;
+    const idFora = resFora.data?.response?.[0]?.team?.id;
+
+    if (!idCasa || !idFora) return null;
+
+    const resH2H = await axios.get(`${API_FOOTBALL_URL}/fixtures/headtohead`, {
+      headers: { 'x-apisports-key': API_FOOTBALL_KEY },
+      params: { h2h: `${idCasa}-${idFora}`, last: 5 },
+      timeout: 5000
+    });
+
+    const jogos = resH2H.data?.response || [];
+    if (jogos.length === 0) return null;
+
+    const resultados = jogos.map(f => {
+      const h = f.teams.home.name;
+      const a = f.teams.away.name;
+      const gh = f.goals.home;
+      const ga = f.goals.away;
+      return `${h} ${gh}x${ga} ${a}`;
+    });
+
+    return {
+      confrontos: resultados,
+      texto: `Ultimos ${resultados.length} confrontos: ${resultados.join(' | ')}`
+    };
+  } catch (err) {
+    console.log(`H2H erro: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Chama a API do Gemini com retry robusto
+ * Tenta múltiplos modelos se necessário (gemini-2.0-flash -> gemini-1.5-flash)
+ */
+async function chamarGemini(apiKey, prompt, useGrounding, maxRetries = 5, deadlineMs = null) {
+  // Controle de tempo global - se tiver deadline, respeitar
+  const startTime = Date.now();
+  const hasDeadline = deadlineMs && deadlineMs > 0;
+
+  // Modelo principal (gemini-2.0-flash é o mais confiável)
+  const modelo = { nome: 'gemini-2.0-flash', version: 'v1beta' };
+  const apiUrl = `https://generativelanguage.googleapis.com/${modelo.version}/models/${modelo.nome}:generateContent?key=${apiKey}`;
+  
+  const requestBody = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 16384
+    }
+  };
+  
+  if (useGrounding) {
+    requestBody.tools = [{ google_search: {} }];
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Verificar se ainda temos tempo
+    if (hasDeadline) {
+      const elapsed = Date.now() - startTime;
+      const remaining = deadlineMs - elapsed;
+      if (remaining < 15000) { // Menos de 15s restantes
+        console.log(`  Tempo insuficiente (${Math.round(remaining/1000)}s restantes), abortando...`);
+        return null;
+      }
+    }
+
+    try {
+      console.log(`  ${modelo.nome} (grounding=${useGrounding}) tentativa ${attempt}/${maxRetries}...`);
+      const response = await axios.post(apiUrl, requestBody, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 120000
+      });
+      
+      if (response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.log(`  ${modelo.nome} respondeu com sucesso na tentativa ${attempt}`);
+        return response;
+      }
+      console.log(`  Resposta sem texto valido`);
+    } catch (apiError) {
+      const status = apiError.response?.status;
+      const errorBody = apiError.response?.data?.error?.message || apiError.message;
+      console.log(`  Tentativa ${attempt} falhou: status=${status} msg=${errorBody}`);
+      
+      if (status === 429) {
+        // Rate limit - espera progressiva mais agressiva: 30s, 60s, 90s, 120s, 150s
+        const waitTime = attempt * 30000;
+        console.log(`  Rate limit (429) - aguardando ${waitTime/1000}s antes de tentar novamente...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      if (status === 503 || status === 500) {
+        // Servidor sobrecarregado - espera moderada
+        const waitTime = attempt * 15000;
+        console.log(`  Servidor indisponivel (${status}) - aguardando ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      if (status === 400 && useGrounding) {
+        // Grounding pode não ser suportado - sair para tentar sem grounding
+        console.log(`  Grounding nao suportado (400), saindo para tentar sem grounding...`);
+        return null;
+      }
+      if (attempt < maxRetries) {
+        const waitTime = 5000 + (attempt * 5000);
+        console.log(`  Aguardando ${waitTime/1000}s antes da proxima tentativa...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+  console.log(`  Modelo ${modelo.nome} esgotou ${maxRetries} tentativas`);
+  return null;
+}
+
+/**
+ * Gera análise de fallback local (sem IA) para quando TUDO falha
+ * Garante que o concurso NUNCA fica sem análise
+ */
+function gerarAnaliseFallback(tipo, concurso, jogos) {
+  console.log('>>> GERANDO ANALISE FALLBACK LOCAL (sem IA) <<<');
+  
+  if (tipo === 'programacao') {
+    const analiseJogos = jogos.map((j, idx) => {
+      const time1 = j.time1 || j.timeCasa || 'Time Casa';
+      const time2 = j.time2 || j.timeFora || 'Time Fora';
+      return {
+        jogo: idx + 1,
+        timeCasa: time1,
+        timeFora: time2,
+        historicoCasa: '',
+        historicoFora: '',
+        consensoMercado: 'Dados de mercado indisponiveis no momento. Consulte sites de apostas para odds atualizadas.',
+        contextoLocal: 'Informacoes de bastidores indisponiveis no momento. Consulte portais esportivos locais.',
+        analiseTecnica: `Confronto entre ${time1} (mandante) e ${time2} (visitante). Analise detalhada sera atualizada em breve.`,
+        h2h: '',
+        palpite: '1',
+        confianca: 50,
+        riscoZebra: 'Medio',
+        analise: `Jogo entre ${time1} e ${time2}. O mando de campo pode ser um fator importante. Analise completa com dados de mercado e noticias sera gerada assim que o servico de IA estiver disponivel. Use o botao "Regenerar Analise IA" no painel admin para atualizar.`,
+        fontesUsadas: 'Analise pendente - use Regenerar Analise IA'
+      };
+    });
+
+    const palpites = jogos.map(() => '1').join(',');
+
+    return {
+      resumo: `Concurso ${concurso} da Loteca - Analise preliminar com ${jogos.length} jogos. Use "Regenerar Analise IA" no admin para obter a analise completa com odds e noticias.`,
+      detalhada: `A analise completa com inteligencia artificial para o Concurso ${concurso} nao pode ser gerada neste momento devido a indisponibilidade temporaria do servico de IA. Os dados basicos dos ${jogos.length} jogos estao disponiveis abaixo.\n\nPara obter a analise completa com odds reais de casas de apostas, noticias de jornais locais e palpites fundamentados, acesse o painel admin e clique em "Regenerar Analise IA".\n\nEsta e uma analise preliminar que sera substituida pela analise completa assim que o servico estiver disponivel.`,
+      analiseJogos: analiseJogos,
+      resumoCartela: {
+        palpites: palpites,
+        duplos: [],
+        triplos: [],
+        estrategia: 'Estrategia sera gerada com a analise completa. Use "Regenerar Analise IA" no admin.',
+        jogosChave: []
+      },
+      _fallback: true
+    };
+  } else {
+    // Resultados
+    let vMandante = 0, empates = 0, vVisitante = 0;
+    const analiseJogos = jogos.map((j, idx) => {
+      const time1 = j.time1 || j.timeCasa || 'Time Casa';
+      const time2 = j.time2 || j.timeFora || 'Time Fora';
+      const p1 = parseInt(j.placar1) || 0;
+      const p2 = parseInt(j.placar2) || 0;
+      let resultado = 'X';
+      if (p1 > p2) { resultado = '1'; vMandante++; }
+      else if (p1 < p2) { resultado = '2'; vVisitante++; }
+      else { empates++; }
+      
+      return {
+        jogo: idx + 1,
+        timeCasa: time1,
+        timeFora: time2,
+        placar: `${p1}x${p2}`,
+        resultado: resultado,
+        foiZebra: false,
+        destaques: `${time1} ${p1}x${p2} ${time2}.`,
+        analise: `${time1} ${p1}x${p2} ${time2}. Analise detalhada sera atualizada em breve.`,
+        fontesUsadas: 'Analise pendente'
+      };
+    });
+
+    return {
+      resumo: `Resultados do Concurso ${concurso}: ${vMandante} vitorias do mandante, ${empates} empates e ${vVisitante} vitorias do visitante.`,
+      detalhada: `Os resultados do Concurso ${concurso} foram registrados. Analise completa com cronicas dos jogos sera gerada em breve.\n\nUse "Regenerar Analise IA" no admin para obter a analise completa.`,
+      analiseJogos: analiseJogos,
+      estatisticas: {
+        mandantes: vMandante,
+        empates: empates,
+        visitantes: vVisitante,
+        zebras: 0,
+        goleadas: 0,
+        jogoDestaque: 1,
+        resumoEstatistico: `Rodada com ${vMandante} vitorias do mandante, ${empates} empates e ${vVisitante} vitorias do visitante.`
+      },
+      _fallback: true
+    };
+  }
+}
+
+/**
+ * Cloud Function para gerar análise avançada com IA (Gemini)
+ * 
+ * VERSÃO 4 - NUNCA RETORNA ERRO 500
+ * 
+ * Sistema de 3 níveis de fallback:
+ * 1. Gemini com Google Search Grounding (melhor qualidade)
+ * 2. Gemini sem Grounding (boa qualidade)
+ * 3. Análise local sem IA (qualidade básica, mas NUNCA falha)
+ */
+exports.gerarAnaliseIA = onRequest({cors: true, secrets: [geminiApiKey], timeoutSeconds: 540, memory: '512MiB'}, async (req, res) => {
+  try {
+    console.log('=== INICIO gerarAnaliseIA v4 (NUNCA FALHA) ===');
     
     // Verificar autenticação
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, error: 'Não autorizado' });
+      return res.status(401).json({ success: false, error: 'Nao autorizado' });
     }
 
     const idToken = authHeader.split('Bearer ')[1];
     let decodedToken;
     try {
       decodedToken = await admin.auth().verifyIdToken(idToken);
-      console.log('Token verificado para:', decodedToken.email);
     } catch (authError) {
-      console.error('Erro ao verificar token:', authError.message);
-      return res.status(401).json({ success: false, error: 'Token inválido' });
+      return res.status(401).json({ success: false, error: 'Token invalido' });
     }
 
     if (decodedToken.email !== ADMIN_EMAIL) {
-      return res.status(403).json({ success: false, error: 'Apenas admin pode gerar análises' });
+      return res.status(403).json({ success: false, error: 'Apenas admin pode gerar analises' });
     }
 
     const { tipo, concurso, jogos } = req.body;
 
-    console.log('Dados recebidos:', JSON.stringify({ tipo, concurso, jogosCount: jogos?.length }));
-
-    if (!tipo) return res.status(400).json({ success: false, error: 'Campo "tipo" é obrigatório' });
-    if (!concurso) return res.status(400).json({ success: false, error: 'Campo "concurso" é obrigatório' });
+    if (!tipo) return res.status(400).json({ success: false, error: 'Campo "tipo" e obrigatorio' });
+    if (!concurso) return res.status(400).json({ success: false, error: 'Campo "concurso" e obrigatorio' });
     if (!jogos || !Array.isArray(jogos) || jogos.length === 0) {
       return res.status(400).json({ success: false, error: 'Campo "jogos" deve ser um array com pelo menos 1 jogo' });
     }
 
-    const GEMINI_API_KEY = geminiApiKey.value();
-    console.log('Chave Gemini obtida:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
+    console.log(`Tipo: ${tipo}, Concurso: ${concurso}, Jogos: ${jogos.length}`);
 
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ success: false, error: 'Chave do Gemini não configurada' });
+    const GEMINI_KEY = geminiApiKey.value();
+    if (!GEMINI_KEY) {
+      console.log('Chave Gemini NAO encontrada - usando fallback');
+      const fallback = gerarAnaliseFallback(tipo, concurso, jogos);
+      return res.json({
+        success: true,
+        analise: {
+          ...fallback,
+          fontes: [],
+          buscasRealizadas: [],
+          geradaEm: new Date().toISOString(),
+          modelo: 'fallback-local',
+          versao: 'v4-fallback'
+        }
+      });
     }
 
-    // Gerar prompt baseado no tipo
-    let prompt = '';
-    
+    // ============================================================
+    // ETAPA 1: Buscar H2H via API-Football (com timeout curto)
+    // ============================================================
+    let h2hData = {};
     if (tipo === 'programacao') {
-      const jogosFormatados = jogos.map((j, idx) => {
-        const time1 = j.time1 || j.timeCasa || 'Time 1';
-        const time2 = j.time2 || j.timeFora || 'Time 2';
-        const data = j.data || '';
-        return `Jogo ${idx + 1}: ${time1} (mandante) x ${time2} (visitante) - ${data}`;
-      }).join('\n');
-      
-      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos estaduais, Série A, B, C e D do Brasileirão, Copa do Brasil e competições internacionais. Você acompanha os jogos pelos principais veículos: Globo Esporte, ESPN, ge.globo.com, UOL Esporte, Lance, CazéTV, SporTV.
+      try {
+        console.log('Etapa 1: Buscando H2H...');
+        // Limitar a 4 jogos e com timeout global de 15s
+        const h2hTimeout = setTimeout(() => {}, 15000);
+        const h2hPromises = jogos.slice(0, 4).map(async (j, idx) => {
+          const timeCasa = j.time1 || j.timeCasa || '';
+          const timeFora = j.time2 || j.timeFora || '';
+          if (!timeCasa || !timeFora) return null;
+          await new Promise(resolve => setTimeout(resolve, idx * 600));
+          return { idx: idx + 1, data: await buscarH2H(timeCasa, timeFora) };
+        });
+        
+        const h2hResults = await Promise.race([
+          Promise.all(h2hPromises),
+          new Promise(resolve => setTimeout(() => resolve([]), 20000))
+        ]);
+        
+        clearTimeout(h2hTimeout);
+        if (Array.isArray(h2hResults)) {
+          h2hResults.forEach(r => {
+            if (r && r.data) h2hData[r.idx] = r.data;
+          });
+        }
+        console.log(`H2H encontrados: ${Object.keys(h2hData).length}`);
+      } catch (h2hError) {
+        console.log('H2H falhou (nao critico):', h2hError.message);
+      }
+    }
 
-Analise a PROGRAMAÇÃO do Concurso ${concurso} da Loteca com os seguintes jogos:
+    // ============================================================
+    // ETAPA 2: Gerar prompt
+    // ============================================================
+    let prompt = '';
+    if (tipo === 'programacao') {
+      prompt = gerarPromptProgramacaoV3(concurso, jogos, h2hData);
+    } else {
+      prompt = gerarPromptResultadosV3(concurso, jogos);
+    }
+    console.log(`Prompt: ${prompt.length} chars`);
+
+    // ============================================================
+    // ETAPA 3: NIVEL 1 - Gemini COM Google Search Grounding
+    // ============================================================
+    // Deadline global: 480s (deixando 60s de margem do timeout de 540s)
+    const globalDeadline = 480000;
+    const globalStart = Date.now();
+
+    console.log('NIVEL 1: Gemini + Google Search Grounding (5 tentativas, espera longa)...');
+    let response = await chamarGemini(GEMINI_KEY, prompt, true, 5, globalDeadline);
+    let usouGrounding = true;
+
+    // ============================================================
+    // ETAPA 4: NIVEL 2 - Gemini SEM Grounding (fallback)
+    // ============================================================
+    if (!response) {
+      const elapsed = Date.now() - globalStart;
+      const remaining = globalDeadline - elapsed;
+      console.log(`NIVEL 1 falhou (${Math.round(elapsed/1000)}s). NIVEL 2: Gemini SEM Grounding (${Math.round(remaining/1000)}s restantes)...`);
+      usouGrounding = false;
+      response = await chamarGemini(GEMINI_KEY, prompt, false, 5, remaining);
+    }
+
+    // ============================================================
+    // ETAPA 5: NIVEL 3 - Análise local sem IA (fallback final)
+    // ============================================================
+    if (!response) {
+      console.log('NIVEL 2 falhou. NIVEL 3: Analise local (fallback)...');
+      const fallback = gerarAnaliseFallback(tipo, concurso, jogos);
+      console.log('=== FIM gerarAnaliseIA v4 - FALLBACK LOCAL ===');
+      return res.json({
+        success: true,
+        analise: {
+          ...fallback,
+          fontes: [],
+          buscasRealizadas: [],
+          geradaEm: new Date().toISOString(),
+          modelo: 'fallback-local',
+          versao: 'v4-fallback'
+        }
+      });
+    }
+
+    // ============================================================
+    // ETAPA 6: Processar resposta do Gemini
+    // ============================================================
+    console.log('Processando resposta do Gemini...');
+    
+    const candidate = response.data.candidates[0];
+    const textoIA = candidate.content.parts[0].text;
+    
+    // Extrair fontes do grounding metadata (só existe se usou grounding)
+    let fontes = [];
+    let searchQueries = [];
+    if (usouGrounding) {
+      const groundingMetadata = candidate.groundingMetadata || {};
+      searchQueries = groundingMetadata.webSearchQueries || [];
+      const groundingChunks = groundingMetadata.groundingChunks || [];
+      fontes = groundingChunks.map(chunk => ({
+        titulo: chunk.web?.title || '',
+        url: chunk.web?.uri || ''
+      })).filter(f => f.titulo);
+    }
+    
+    console.log(`Texto: ${textoIA.length} chars, Fontes: ${fontes.length}, Grounding: ${usouGrounding}`);
+
+    // Parsear JSON
+    let analise = extrairJSON(textoIA);
+
+    // Se não conseguiu parsear, criar análise com o texto bruto
+    if (!analise || !analise.resumo) {
+      console.log('Parse JSON falhou - usando texto bruto');
+      const linhas = textoIA.split('\n').filter(l => l.trim());
+      analise = {
+        resumo: linhas.slice(0, 2).join(' ').substring(0, 250),
+        detalhada: textoIA,
+        analiseJogos: [],
+        resumoCartela: null
+      };
+    }
+
+    // Garantir que analiseJogos existe e tem o formato correto
+    if (!analise.analiseJogos) analise.analiseJogos = [];
+
+    analise.analiseJogos = analise.analiseJogos.map((j, idx) => ({
+      jogo: j.jogo || (idx + 1),
+      timeCasa: j.timeCasa || '',
+      timeFora: j.timeFora || '',
+      historicoCasa: j.historicoCasa || '',
+      historicoFora: j.historicoFora || '',
+      consensoMercado: j.consensoMercado || '',
+      contextoLocal: j.contextoLocal || '',
+      analiseTecnica: j.analiseTecnica || '',
+      h2h: j.h2h || (h2hData[idx + 1]?.texto || ''),
+      palpite: j.palpite || '',
+      confianca: j.confianca || 50,
+      riscoZebra: j.riscoZebra || 'Medio',
+      analise: j.analise || '',
+      fontesUsadas: j.fontesUsadas || '',
+      placar: j.placar || '',
+      resultado: j.resultado || '',
+      foiZebra: j.foiZebra || false,
+      destaques: j.destaques || ''
+    }));
+
+    // Normalizar resumoCartela
+    if (analise.resumoCartela) {
+      analise.resumoCartela = {
+        palpites: analise.resumoCartela.palpites || '',
+        duplos: analise.resumoCartela.duplos || [],
+        triplos: analise.resumoCartela.triplos || [],
+        estrategia: analise.resumoCartela.estrategia || '',
+        jogosChave: analise.resumoCartela.jogosChave || []
+      };
+    }
+
+    console.log(`Resumo: ${analise.resumo?.substring(0, 80)}`);
+    console.log(`Jogos: ${analise.analiseJogos?.length}, Cartela: ${!!analise.resumoCartela}`);
+    console.log(`=== FIM gerarAnaliseIA v4 - SUCESSO (grounding=${usouGrounding}) ===`);
+    
+    return res.json({
+      success: true,
+      analise: {
+        resumo: analise.resumo || 'Analise gerada com sucesso.',
+        detalhada: analise.detalhada || textoIA,
+        analiseJogos: analise.analiseJogos || [],
+        resumoCartela: analise.resumoCartela || null,
+        estatisticas: analise.estatisticas || null,
+        fontes: fontes,
+        buscasRealizadas: searchQueries,
+        geradaEm: new Date().toISOString(),
+        modelo: 'gemini-2.0-flash',
+        versao: usouGrounding ? 'v4-grounding' : 'v4-sem-grounding'
+      }
+    });
+
+  } catch (error) {
+    // CATCH FINAL - Mesmo que algo inesperado aconteça, NUNCA retorna 500
+    console.error('=== ERRO INESPERADO gerarAnaliseIA ===');
+    console.error('Mensagem:', error.message);
+    console.error('Stack:', error.stack);
+    
+    // Tentar gerar fallback mesmo no catch
+    try {
+      const { tipo, concurso, jogos } = req.body;
+      if (tipo && concurso && jogos) {
+        const fallback = gerarAnaliseFallback(tipo, concurso, jogos);
+        return res.json({
+          success: true,
+          analise: {
+            ...fallback,
+            fontes: [],
+            buscasRealizadas: [],
+            geradaEm: new Date().toISOString(),
+            modelo: 'fallback-erro',
+            versao: 'v4-fallback-erro'
+          }
+        });
+      }
+    } catch (fallbackError) {
+      console.error('Ate o fallback falhou:', fallbackError.message);
+    }
+    
+    // Ultimo recurso absoluto - retorna sucesso com analise minima
+    return res.json({
+      success: true,
+      analise: {
+        resumo: 'Analise temporariamente indisponivel. Use "Regenerar Analise IA" no admin.',
+        detalhada: 'O servico de analise esta temporariamente indisponivel. Por favor, tente novamente usando o botao "Regenerar Analise IA" no painel administrativo.',
+        analiseJogos: [],
+        resumoCartela: null,
+        estatisticas: null,
+        fontes: [],
+        buscasRealizadas: [],
+        geradaEm: new Date().toISOString(),
+        modelo: 'fallback-minimo',
+        versao: 'v4-fallback-minimo'
+      }
+    });
+  }
+});
+
+/**
+ * Gera o prompt avançado para análise de PROGRAMAÇÃO (v3 - com Grounding)
+ */
+function gerarPromptProgramacaoV3(concurso, jogos, h2hData) {
+  const jogosFormatados = jogos.map((j, idx) => {
+    const time1 = j.time1 || j.timeCasa || 'Time 1';
+    const time2 = j.time2 || j.timeFora || 'Time 2';
+    const data = j.data || '';
+    const num = idx + 1;
+    
+    let h2hInfo = '';
+    if (h2hData[num]) {
+      h2hInfo = `\n   H2H (API-Football): ${h2hData[num].texto}`;
+    }
+    
+    return `Jogo ${num}: ${time1} (mandante) x ${time2} (visitante) - ${data}${h2hInfo}`;
+  }).join('\n');
+
+  return `Voce e o "Loteca Pro Analyst", uma IA especializada em inteligencia esportiva global focada na Loteca brasileira. Voce age como um scout internacional e analista de mercado de apostas de alta precisao.
+
+INSTRUCAO CRITICA: Voce tem acesso ao Google Search. USE-O OBRIGATORIAMENTE para buscar informacoes REAIS e ATUALIZADAS sobre CADA jogo. Nao invente dados. Busque:
+
+1. ODDS REAIS: Busque as odds atuais em sites como Bet365, Betano, Sportingbet, Betfair, Pinnacle, odds.com.br, oddspedia.com. Para cada jogo, informe as odds reais que encontrar.
+
+2. NOTICIAS LOCAIS: Para cada jogo, busque noticias NO IDIOMA E NOS JORNAIS DO PAIS do jogo:
+   - Brasil: ge.globo.com, uol.com.br/esporte, espn.com.br, lance.com.br, gazetaesportiva.com
+   - Italia: gazzetta.it, corrieredellosport.it, tuttosport.com
+   - Espanha: marca.com, as.com, mundodeportivo.com
+   - Inglaterra: bbc.com/sport, skysports.com, theguardian.com/football
+   - Franca: lequipe.fr, footmercato.net
+   - Alemanha: kicker.de, bild.de/sport
+   - Portugal: abola.pt, ojogo.pt, record.pt
+
+3. HISTORICO RECENTE: Busque os ultimos 5 resultados reais de cada equipe.
+
+4. LESOES E DESFALQUES: Busque jogadores lesionados, suspensos ou em duvida para cada time.
+
+Analise a PROGRAMACAO do Concurso ${concurso} da Loteca:
 
 ${jogosFormatados}
 
-Gere uma análise COMPLETA no seguinte formato JSON. Responda APENAS com o JSON puro, sem markdown, sem crases, sem texto antes ou depois:
+FORMATO DE RESPOSTA - JSON puro (sem markdown, sem crases):
 
 {
-  "resumo": "Texto de até 3 linhas (máximo 250 caracteres) destacando os principais jogos, clássicos e confrontos mais atrativos desta rodada.",
-  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: visão geral da rodada, destacando os clássicos e jogos mais importantes. Segundo parágrafo: análise dos confrontos mais equilibrados e possíveis zebras. Terceiro parágrafo: contexto dos campeonatos e o que está em jogo para os times. Separe os parágrafos com duas quebras de linha.",
+  "resumo": "Texto de ate 250 caracteres destacando os principais jogos, classicos e confrontos desta rodada. Mencione odds e favoritos.",
+  "detalhada": "Analise em 3 paragrafos RICOS com dados reais. P1: visao geral da rodada com odds reais dos favoritos. P2: confrontos equilibrados, possiveis zebras e onde o mercado diverge. P3: contexto dos campeonatos, o que esta em jogo e impacto na classificacao. Separe paragrafos com duas quebras de linha. Cite fontes especificas.",
   "analiseJogos": [
     {
       "jogo": 1,
-      "analise": "Análise de até 5 linhas sobre este confronto específico. Inclua: contexto atual dos dois times (fase, posição na tabela, últimos resultados), histórico do confronto (quem leva vantagem), jogadores-chave de cada lado, e um palpite fundamentado sobre o resultado mais provável."
+      "timeCasa": "Nome completo do time da casa",
+      "timeFora": "Nome completo do time visitante",
+      "historicoCasa": "V,V,E,D,V",
+      "historicoFora": "D,E,V,D,D",
+      "consensoMercado": "Odds REAIS encontradas. Ex: Bet365: Casa 1.75 / Empate 3.50 / Fora 4.20. Betano: Casa 1.80 / Empate 3.40 / Fora 4.00. Mercado confiante no mandante com odds baixas.",
+      "contextoLocal": "Informacoes de bastidores com FONTE REAL. Ex: Segundo a Gazzetta dello Sport, o tecnico confirmou que poupara 3 titulares.",
+      "analiseTecnica": "Analise cruzando forma real x odds x contexto local (2-3 linhas).",
+      "h2h": "Ultimos confrontos diretos entre os times (dados reais).",
+      "palpite": "1",
+      "confianca": 75,
+      "riscoZebra": "Baixo",
+      "analise": "Texto completo da analise do jogo (3-5 linhas). Inclua odds reais, historico, fase dos times, jogadores-chave, desfalques e palpite fundamentado.",
+      "fontesUsadas": "ge.globo.com, bet365.com, espn.com.br"
     }
-  ]
+  ],
+  "resumoCartela": {
+    "palpites": "1,1,X,1,2,X,1,1,1,X,1,1,1,1",
+    "duplos": [
+      { "jogo": 3, "opcoes": "1X", "motivo": "Odds proximas entre casa e empate." }
+    ],
+    "triplos": [
+      { "jogo": 10, "opcoes": "1X2", "motivo": "Confronto totalmente imprevisivel." }
+    ],
+    "estrategia": "Texto explicando a estrategia com base nas odds reais.",
+    "jogosChave": [3, 7, 10]
+  }
 }
 
-REGRAS IMPORTANTES:
-- O array "analiseJogos" DEVE ter exatamente ${jogos.length} itens, um para cada jogo
-- Cada análise de jogo deve ter entre 3 e 5 linhas
-- Mencione a fase atual dos times (invicto, em crise, líder, rebaixamento, etc.)
-- Mencione jogadores-chave e destaques de cada equipe
-- Inclua um palpite fundamentado (vitória casa, empate ou vitória visitante)
-- Destaque clássicos regionais e rivalidades históricas
-- Analise se o mandante é favorito ou se há possibilidade de zebra
-- Use linguagem jornalística profissional, como se fosse uma matéria do Globo Esporte
-- NÃO use markdown no texto, apenas texto corrido`;
+REGRAS OBRIGATORIAS:
+- USE O GOOGLE SEARCH para buscar dados reais de CADA jogo
+- "analiseJogos" DEVE ter exatamente ${jogos.length} itens, um para cada jogo
+- "palpite": use "1" (vitoria casa), "X" (empate) ou "2" (vitoria visitante)
+- "confianca": numero inteiro de 50 a 95
+- "riscoZebra": "Baixo", "Medio" ou "Alto"
+- "historicoCasa"/"historicoFora": exatamente 5 resultados separados por virgula (V, E ou D)
+- "resumoCartela.palpites": exatamente ${jogos.length} palpites separados por virgula
+- "duplos": maximo 4 jogos
+- "triplos": maximo 2 jogos
+- "jogosChave": IDs dos 3-5 jogos mais decisivos
+- Linguagem jornalistica profissional em portugues brasileiro
+- NAO use markdown, apenas texto corrido dentro do JSON
+- Responda APENAS com o JSON, sem texto antes ou depois`;
+}
 
-    } else {
-      // RESULTADOS - prompt completo com análise por jogo
-      const jogosFormatados = jogos.map((j, idx) => {
-        const time1 = j.time1 || j.timeCasa || 'Time 1';
-        const time2 = j.time2 || j.timeFora || 'Time 2';
-        const placar1 = j.placar1 !== undefined ? j.placar1 : '?';
-        const placar2 = j.placar2 !== undefined ? j.placar2 : '?';
-        return `Jogo ${idx + 1}: ${time1} (mandante) ${placar1} x ${placar2} ${time2} (visitante)`;
-      }).join('\n');
-      
-      // Calcular estatísticas
-      let vMandante = 0, empates = 0, vVisitante = 0;
-      jogos.forEach(j => {
-        const p1 = parseInt(j.placar1);
-        const p2 = parseInt(j.placar2);
-        if (p1 > p2) vMandante++;
-        else if (p1 === p2) empates++;
-        else vVisitante++;
-      });
-      
-      prompt = `Você é um jornalista esportivo especializado em futebol brasileiro, com conhecimento profundo sobre todos os campeonatos. Você acompanha os jogos pelos principais veículos: Globo Esporte, ESPN, ge.globo.com, UOL Esporte, Lance, CazéTV, SporTV.
+/**
+ * Gera o prompt avançado para análise de RESULTADOS (v3 - com Grounding)
+ */
+function gerarPromptResultadosV3(concurso, jogos) {
+  const jogosFormatados = jogos.map((j, idx) => {
+    const time1 = j.time1 || j.timeCasa || 'Time 1';
+    const time2 = j.time2 || j.timeFora || 'Time 2';
+    const placar1 = j.placar1 !== undefined ? j.placar1 : '?';
+    const placar2 = j.placar2 !== undefined ? j.placar2 : '?';
+    return `Jogo ${idx + 1}: ${time1} (mandante) ${placar1} x ${placar2} ${time2} (visitante)`;
+  }).join('\n');
+  
+  let vMandante = 0, empates = 0, vVisitante = 0;
+  jogos.forEach(j => {
+    const p1 = parseInt(j.placar1);
+    const p2 = parseInt(j.placar2);
+    if (p1 > p2) vMandante++;
+    else if (p1 === p2) empates++;
+    else vVisitante++;
+  });
+
+  return `Voce e o "Loteca Pro Analyst", uma IA especializada em inteligencia esportiva global focada na Loteca.
+
+INSTRUCAO: Use o Google Search para buscar informacoes REAIS sobre os resultados: autores dos gols, lances importantes, cronicas dos jogos em jornais locais.
 
 Analise os RESULTADOS do Concurso ${concurso} da Loteca:
 
 ${jogosFormatados}
 
-Estatísticas da rodada:
-- Vitórias do mandante: ${vMandante}
+Estatisticas da rodada:
+- Vitorias do mandante: ${vMandante}
 - Empates: ${empates}
-- Vitórias do visitante: ${vVisitante}
+- Vitorias do visitante: ${vVisitante}
 
-Gere uma análise COMPLETA no seguinte formato JSON. Responda APENAS com o JSON puro, sem markdown, sem crases, sem texto antes ou depois:
+Responda com JSON puro (sem markdown, sem crases):
 
 {
-  "resumo": "Texto de até 3 linhas (máximo 250 caracteres) com os destaques mais marcantes da rodada: zebras, goleadas, resultados surpreendentes.",
-  "detalhada": "Análise em 3 parágrafos. Primeiro parágrafo: panorama geral da rodada, resultados mais marcantes e tendências (mandantes vs visitantes). Segundo parágrafo: as maiores surpresas e zebras, resultados que ninguém esperava. Terceiro parágrafo: destaques individuais, goleadas e o impacto nos campeonatos. Separe os parágrafos com duas quebras de linha.",
+  "resumo": "Texto de ate 250 caracteres com os destaques mais marcantes.",
+  "detalhada": "Analise em 3 paragrafos com dados reais. Cite fontes. Separe paragrafos com duas quebras de linha.",
   "analiseJogos": [
     {
       "jogo": 1,
-      "analise": "Análise de até 5 linhas sobre este jogo específico. Inclua: quem fez os gols (invente nomes realistas de jogadores se não souber os reais), como foi o jogo (dominante, equilibrado, virada), se o resultado foi esperado ou surpreendente, e contexto do confronto. Exemplo: 'O Corinthians dominou o Flamengo desde o início, com gols de Yuri Alberto (aos 15min) e Romero (aos 67min). Resultado surpreendente já que o Flamengo era favorito jogando em casa. O Timão mostrou solidez defensiva e eficiência no contra-ataque.'"
+      "timeCasa": "Nome do time",
+      "timeFora": "Nome do time",
+      "placar": "2x1",
+      "resultado": "1",
+      "foiZebra": false,
+      "destaques": "Autores dos gols reais, lances importantes.",
+      "analise": "Analise completa com dados reais (3-5 linhas).",
+      "fontesUsadas": "ge.globo.com, espn.com.br"
     }
-  ]
+  ],
+  "estatisticas": {
+    "mandantes": ${vMandante},
+    "empates": ${empates},
+    "visitantes": ${vVisitante},
+    "zebras": 0,
+    "goleadas": 0,
+    "jogoDestaque": 1,
+    "resumoEstatistico": "Resumo estatistico da rodada."
+  }
 }
 
-REGRAS IMPORTANTES:
-- O array "analiseJogos" DEVE ter exatamente ${jogos.length} itens, um para cada jogo
-- Cada análise de jogo deve ter entre 3 e 5 linhas
-- Mencione autores dos gols (use nomes de jogadores conhecidos dos elencos atuais)
-- Analise se o resultado foi esperado (favorito venceu) ou zebra (azarão venceu)
-- Use linguagem jornalística profissional
-- NÃO use markdown no texto, apenas texto corrido
-- Goleadas (3+ gols de diferença) merecem destaque especial
-- Empates em clássicos são sempre notáveis
-- Vitórias de visitante são sempre mais difíceis e merecem destaque`;
-    }
+REGRAS OBRIGATORIAS:
+- USE O GOOGLE SEARCH para buscar dados reais
+- "analiseJogos" DEVE ter exatamente ${jogos.length} itens
+- "resultado": "1" (casa venceu), "X" (empate) ou "2" (visitante venceu)
+- Linguagem jornalistica profissional em portugues brasileiro
+- NAO use markdown, apenas texto corrido dentro do JSON
+- Responda APENAS com o JSON, sem texto antes ou depois`;
+}
 
-    console.log('Prompt gerado, chamando API do Gemini...');
-
-    // Chamar API do Gemini
-    let response;
+/**
+ * Extrai JSON de forma robusta do texto retornado pela IA
+ */
+function extrairJSON(textoIA) {
+  let textoLimpo = textoIA.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  
+  // Tentativa 1: Parse direto
+  try {
+    const analise = JSON.parse(textoLimpo);
+    console.log('JSON: parse direto OK');
+    return analise;
+  } catch (e) {}
+  
+  // Tentativa 2: Extrair JSON do texto
+  const jsonMatch = textoLimpo.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
     try {
-      response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 8192
-          }
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 90000
-        }
-      );
-      console.log('Resposta da API recebida com sucesso');
-    } catch (apiError) {
-      console.error('Erro na chamada da API Gemini:', apiError.message);
-      if (apiError.response) {
-        console.error('Status:', apiError.response.status);
-        console.error('Data:', JSON.stringify(apiError.response.data));
-      }
-      return res.status(500).json({ 
-        success: false, 
-        error: `Erro na API do Gemini: ${apiError.message}`
-      });
-    }
-
-    // Extrair texto da resposta
-    if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
-      console.error('Resposta em formato inesperado:', JSON.stringify(response.data));
-      return res.status(500).json({ success: false, error: 'Resposta da API em formato inesperado' });
-    }
-
-    const textoIA = response.data.candidates[0].content.parts[0].text;
-    console.log('Texto da IA recebido (primeiros 300 chars):', textoIA.substring(0, 300));
-
-    // Extrair JSON da resposta - limpeza robusta
-    let analise = null;
-    
-    // Remover markdown se presente
-    let textoLimpo = textoIA.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    // Tentar extrair JSON
-    const jsonMatch = textoLimpo.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+      const analise = JSON.parse(jsonMatch[0]);
+      console.log('JSON: regex OK');
+      return analise;
+    } catch (e) {
+      // Tentativa 2b: Limpar caracteres de controle
       try {
-        analise = JSON.parse(jsonMatch[0]);
-        console.log('JSON extraído com sucesso via parse direto');
-      } catch (parseError) {
-        console.log('Parse direto falhou, tentando limpar newlines...');
-        try {
-          // Substituir newlines dentro de strings por espaços
-          let jsonStr = jsonMatch[0];
-          // Estratégia: substituir \n que estão dentro de valores de string
-          jsonStr = jsonStr.replace(/\n/g, '\\n');
-          analise = JSON.parse(jsonStr);
-          console.log('JSON extraído com sucesso após limpar newlines');
-        } catch (parseError2) {
-          console.error('Erro ao parsear JSON mesmo após limpeza:', parseError2.message);
-          console.error('Texto (primeiros 500):', jsonMatch[0].substring(0, 500));
-        }
-      }
+        let jsonStr = jsonMatch[0];
+        jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, (match) => {
+          if (match === '\n') return '\\n';
+          if (match === '\r') return '';
+          if (match === '\t') return ' ';
+          return '';
+        });
+        const analise = JSON.parse(jsonStr);
+        console.log('JSON: limpeza OK');
+        return analise;
+      } catch (e2) {}
     }
-
-    // Se não conseguiu parsear, criar análise com o texto bruto
-    if (!analise || !analise.resumo) {
-      console.log('Usando texto como análise direta (fallback)');
-      const linhas = textoIA.split('\n').filter(l => l.trim());
-      analise = {
-        resumo: linhas.slice(0, 2).join(' ').substring(0, 250),
-        detalhada: linhas.slice(2).join('\n'),
-        analiseJogos: []
-      };
-    }
-
-    // Garantir que analiseJogos existe
-    if (!analise.analiseJogos) {
-      analise.analiseJogos = [];
-    }
-
-    console.log('Resumo:', analise.resumo?.substring(0, 100));
-    console.log('Detalhada:', analise.detalhada?.substring(0, 100));
-    console.log('Jogos analisados:', analise.analiseJogos?.length || 0);
-    console.log('=== FIM gerarAnaliseIA - SUCESSO ===');
-    
-    res.json({
-      success: true,
-      analise: {
-        resumo: analise.resumo || 'Análise gerada com sucesso.',
-        detalhada: analise.detalhada || textoIA,
-        analiseJogos: analise.analiseJogos || [],
-        geradaEm: new Date().toISOString(),
-        modelo: 'gemini-2.0-flash'
-      }
-    });
-
-  } catch (error) {
-    console.error('=== ERRO gerarAnaliseIA ===');
-    console.error('Mensagem:', error.message);
-    console.error('Stack:', error.stack);
-    
-    res.status(500).json({ 
-      success: false, 
-      error: `Erro interno: ${error.message}`
-    });
   }
-});
+  
+  // Tentativa 3: Corrigir JSON truncado
+  try {
+    let jsonStr = textoLimpo;
+    const openBraces = (jsonStr.match(/\{/g) || []).length;
+    const closeBraces = (jsonStr.match(/\}/g) || []).length;
+    const openBrackets = (jsonStr.match(/\[/g) || []).length;
+    const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+    
+    for (let i = 0; i < openBrackets - closeBrackets; i++) jsonStr += ']';
+    for (let i = 0; i < openBraces - closeBraces; i++) jsonStr += '}';
+    
+    const analise = JSON.parse(jsonStr);
+    console.log('JSON: truncamento corrigido OK');
+    return analise;
+  } catch (e) {}
+  
+  console.log('JSON: todas tentativas falharam');
+  return null;
+}

@@ -935,3 +935,293 @@ function extrairJSON(textoIA) {
   console.log('JSON: todas tentativas falharam');
   return null;
 }
+
+
+// ============================================================
+// MERCADO DA BOLA - Busca automática de notícias via Gemini
+// ============================================================
+
+/**
+ * Cloud Function para buscar notícias de mercado (transferências, lesões, rumores)
+ * Usa Gemini 2.0 Flash com Google Search Grounding para buscar em portais esportivos reais
+ * 
+ * Pode ser chamada:
+ * 1. Automaticamente após publicação de concurso
+ * 2. Manualmente pelo admin via botão "Atualizar Mercado"
+ * 3. Por qualquer usuário autenticado (leitura do cache)
+ */
+exports.buscarMercado = onRequest({cors: true, secrets: [geminiApiKey], timeoutSeconds: 300, memory: '512MiB'}, async (req, res) => {
+  try {
+    console.log('=== INICIO buscarMercado ===');
+    
+    const { concurso, jogos, forceRefresh } = req.body;
+
+    if (!concurso) {
+      return res.status(400).json({ success: false, error: 'Campo "concurso" e obrigatorio' });
+    }
+
+    // Verificar se já existe cache recente (menos de 6 horas) - exceto se forceRefresh
+    if (!forceRefresh) {
+      try {
+        const mercadoDoc = await db.collection('mercado').doc(concurso).get();
+        if (mercadoDoc.exists) {
+          const data = mercadoDoc.data();
+          const atualizadoEm = data.atualizadoEm?.toDate ? data.atualizadoEm.toDate() : new Date(data.atualizadoEm);
+          const horasDesdeAtualizacao = (Date.now() - atualizadoEm.getTime()) / (1000 * 60 * 60);
+          
+          if (horasDesdeAtualizacao < 6) {
+            console.log(`Cache valido encontrado (${horasDesdeAtualizacao.toFixed(1)}h). Retornando cache.`);
+            return res.json({
+              success: true,
+              mercado: data,
+              fromCache: true
+            });
+          }
+        }
+      } catch (cacheError) {
+        console.log('Erro ao verificar cache:', cacheError.message);
+      }
+    }
+
+    // Se não tem jogos no body, buscar do concurso publicado
+    let jogosParaBuscar = jogos;
+    if (!jogosParaBuscar || !Array.isArray(jogosParaBuscar) || jogosParaBuscar.length === 0) {
+      try {
+        const concursoDoc = await db.collection('concursos_publicados').doc(concurso).get();
+        if (concursoDoc.exists) {
+          jogosParaBuscar = concursoDoc.data().jogos || [];
+        }
+      } catch (e) {
+        console.log('Erro ao buscar jogos do concurso:', e.message);
+      }
+    }
+
+    if (!jogosParaBuscar || jogosParaBuscar.length === 0) {
+      return res.status(400).json({ success: false, error: 'Nenhum jogo encontrado para o concurso' });
+    }
+
+    // Extrair todos os times
+    const times = [];
+    jogosParaBuscar.forEach(j => {
+      const casa = j.time1 || j.timeCasa || '';
+      const fora = j.time2 || j.timeFora || '';
+      if (casa) times.push(casa);
+      if (fora) times.push(fora);
+    });
+
+    console.log(`Times encontrados: ${times.length} - ${times.join(', ')}`);
+
+    // Identificar países/ligas para direcionar buscas
+    const timesFormatados = jogosParaBuscar.map((j, idx) => {
+      const casa = j.time1 || j.timeCasa || 'Time Casa';
+      const fora = j.time2 || j.timeFora || 'Time Fora';
+      return `Jogo ${idx + 1}: ${casa} x ${fora}`;
+    }).join('\n');
+
+    // Gerar prompt para buscar notícias de mercado
+    const prompt = gerarPromptMercado(concurso, timesFormatados, times);
+    
+    const GEMINI_KEY = geminiApiKey.value();
+    console.log('Chamando Gemini com Search Grounding para buscar noticias de mercado...');
+
+    // Tentar com Grounding primeiro (busca real na web)
+    let response = await chamarGemini(GEMINI_KEY, prompt, true, 3, 240000);
+    let usouGrounding = true;
+
+    // Fallback sem grounding
+    if (!response) {
+      console.log('Grounding falhou. Tentando sem grounding...');
+      usouGrounding = false;
+      response = await chamarGemini(GEMINI_KEY, prompt, false, 3, 60000);
+    }
+
+    if (!response) {
+      console.log('Gemini indisponivel. Retornando mercado vazio.');
+      const mercadoVazio = {
+        concurso,
+        destaque: [],
+        rumores: [],
+        lesoes: [],
+        impacto: 'Servico de busca de noticias temporariamente indisponivel. Tente atualizar novamente em alguns minutos.',
+        fontes: [],
+        atualizadoEm: new Date().toISOString(),
+        modelo: 'indisponivel'
+      };
+      return res.json({ success: true, mercado: mercadoVazio, fromCache: false });
+    }
+
+    // Processar resposta
+    const candidate = response.data.candidates[0];
+    const textoIA = candidate.content.parts[0].text;
+    
+    // Extrair fontes do grounding
+    let fontes = [];
+    if (usouGrounding) {
+      const groundingMetadata = candidate.groundingMetadata || {};
+      const groundingChunks = groundingMetadata.groundingChunks || [];
+      fontes = groundingChunks.map(chunk => ({
+        titulo: chunk.web?.title || '',
+        url: chunk.web?.uri || ''
+      })).filter(f => f.titulo);
+    }
+
+    console.log(`Resposta recebida: ${textoIA.length} chars, Fontes: ${fontes.length}`);
+
+    // Parsear JSON da resposta
+    let mercadoData = extrairJSON(textoIA);
+
+    if (!mercadoData) {
+      console.log('Falha ao parsear JSON do mercado. Usando texto bruto.');
+      mercadoData = {
+        destaque: [],
+        rumores: [],
+        lesoes: [],
+        impacto: textoIA.substring(0, 1000)
+      };
+    }
+
+    // Normalizar e validar dados
+    const mercadoFinal = {
+      concurso,
+      destaque: Array.isArray(mercadoData.destaque) ? mercadoData.destaque.map(t => ({
+        jogador: t.jogador || 'Jogador',
+        de: t.de || 'Clube anterior',
+        para: t.para || 'Novo clube',
+        valor: t.valor || '',
+        data: t.data || '',
+        impactoLoteca: t.impactoLoteca || '',
+        fonte: t.fonte || ''
+      })) : [],
+      rumores: Array.isArray(mercadoData.rumores) ? mercadoData.rumores.map(r => ({
+        jogador: r.jogador || 'Jogador',
+        descricao: r.descricao || '',
+        probabilidade: r.probabilidade || 'media',
+        fonte: r.fonte || '',
+        impactoLoteca: r.impactoLoteca || ''
+      })) : [],
+      lesoes: Array.isArray(mercadoData.lesoes) ? mercadoData.lesoes.map(l => ({
+        jogador: l.jogador || 'Jogador',
+        time: l.time || '',
+        descricao: l.descricao || '',
+        previsao: l.previsao || 'Indefinida',
+        gravidade: l.gravidade || 'media',
+        impactoLoteca: l.impactoLoteca || ''
+      })) : [],
+      impacto: mercadoData.impacto || 'Analise de impacto indisponivel.',
+      fontes: fontes,
+      atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      atualizadoEmISO: new Date().toISOString(),
+      modelo: usouGrounding ? 'gemini-2.0-flash-grounding' : 'gemini-2.0-flash',
+      totalNoticias: (mercadoData.destaque?.length || 0) + (mercadoData.rumores?.length || 0) + (mercadoData.lesoes?.length || 0)
+    };
+
+    // Salvar no Firestore
+    await db.collection('mercado').doc(concurso).set(mercadoFinal);
+    console.log(`Mercado salvo no Firestore para concurso ${concurso}. Total: ${mercadoFinal.totalNoticias} noticias.`);
+
+    console.log('=== FIM buscarMercado - SUCESSO ===');
+    return res.json({
+      success: true,
+      mercado: {
+        ...mercadoFinal,
+        atualizadoEm: mercadoFinal.atualizadoEmISO
+      },
+      fromCache: false
+    });
+
+  } catch (error) {
+    console.error('=== ERRO buscarMercado ===', error.message);
+    return res.json({
+      success: true,
+      mercado: {
+        concurso: req.body?.concurso || '',
+        destaque: [],
+        rumores: [],
+        lesoes: [],
+        impacto: 'Erro ao buscar noticias de mercado. Tente novamente.',
+        fontes: [],
+        atualizadoEm: new Date().toISOString(),
+        modelo: 'erro'
+      },
+      fromCache: false
+    });
+  }
+});
+
+/**
+ * Gera o prompt para buscar notícias de mercado nos portais esportivos
+ */
+function gerarPromptMercado(concurso, jogosFormatados, times) {
+  return `Voce e o "Loteca Pro Market Analyst", uma IA especializada em inteligencia de mercado do futebol focada nos times que disputam a Loteca brasileira.
+
+INSTRUCAO CRITICA: Voce tem acesso ao Google Search. USE-O OBRIGATORIAMENTE para buscar noticias REAIS e ATUALIZADAS sobre CADA time listado abaixo. Nao invente dados.
+
+TIMES DO CONCURSO ${concurso} DA LOTECA:
+${jogosFormatados}
+
+BUSQUE NOTICIAS NOS PORTAIS ESPORTIVOS NATIVOS DE CADA PAIS:
+- Brasil: ge.globo.com, uol.com.br/esporte, espn.com.br, lance.com.br, gazetaesportiva.com, tntsports.com.br
+- Italia: gazzetta.it, corrieredellosport.it, tuttosport.com, football-italia.net
+- Espanha: marca.com, as.com, mundodeportivo.com, sport.es
+- Inglaterra: bbc.com/sport, skysports.com, theguardian.com/football, mirror.co.uk/sport
+- Franca: lequipe.fr, footmercato.net, rmcsport.bfmtv.com
+- Alemanha: kicker.de, bild.de/sport, transfermarkt.de
+- Portugal: abola.pt, ojogo.pt, record.pt
+- Argentina: ole.com.ar, tycsports.com, dobleamarilla.com.ar
+
+BUSQUE ESPECIFICAMENTE:
+1. TRANSFERENCIAS CONFIRMADAS: Jogadores que foram contratados ou vendidos recentemente por qualquer um dos ${times.length} times
+2. RUMORES DE TRANSFERENCIA: Negociacoes em andamento, jogadores na mira, propostas recebidas
+3. LESOES E DESFALQUES: Jogadores lesionados, suspensos, em recuperacao ou em duvida para os proximos jogos
+4. IMPACTO NA LOTECA: Como essas movimentacoes afetam os jogos do concurso
+
+FORMATO DE RESPOSTA - JSON puro (sem markdown, sem crases):
+
+{
+  "destaque": [
+    {
+      "jogador": "Nome completo do jogador",
+      "de": "Clube de origem",
+      "para": "Clube de destino",
+      "valor": "Valor da transferencia (ex: 15M EUR) ou vazio se nao divulgado",
+      "data": "Data da confirmacao (ex: 10/02/2026)",
+      "impactoLoteca": "Como isso afeta os jogos da Loteca (1-2 frases)",
+      "fonte": "Nome do portal onde encontrou a noticia"
+    }
+  ],
+  "rumores": [
+    {
+      "jogador": "Nome do jogador",
+      "descricao": "Descricao do rumor (de onde para onde, valores especulados, etc)",
+      "probabilidade": "alta, media ou baixa",
+      "fonte": "Portal de origem da noticia",
+      "impactoLoteca": "Como isso pode afetar os jogos da Loteca"
+    }
+  ],
+  "lesoes": [
+    {
+      "jogador": "Nome do jogador",
+      "time": "Nome do time",
+      "descricao": "Tipo de lesao ou motivo da ausencia (lesao muscular, suspensao, etc)",
+      "previsao": "Previsao de retorno (ex: 2-3 semanas, proximo jogo, indefinida)",
+      "gravidade": "alta, media ou baixa",
+      "impactoLoteca": "Como a ausencia deste jogador afeta o jogo da Loteca"
+    }
+  ],
+  "impacto": "Texto de 3-5 paragrafos analisando como TODAS as movimentacoes de mercado (transferencias, rumores e lesoes) impactam os jogos deste concurso da Loteca. Seja especifico: mencione jogos, times e jogadores. Indique quais jogos ficam mais incertos por causa de desfalques e quais times se reforcaram. Separe paragrafos com duas quebras de linha."
+}
+
+REGRAS OBRIGATORIAS:
+- USE O GOOGLE SEARCH para buscar dados reais de CADA time
+- Inclua APENAS noticias REAIS encontradas na busca, NAO invente transferencias ou lesoes
+- Se nao encontrar noticias relevantes para algum time, NAO inclua dados falsos
+- "destaque" deve ter entre 0 e 10 transferencias confirmadas
+- "rumores" deve ter entre 0 e 10 rumores relevantes
+- "lesoes" deve ter entre 0 e 15 lesoes/desfalques relevantes
+- Priorize noticias dos ultimos 7 dias
+- "probabilidade" em rumores: "alta" (negociacao avancada), "media" (interesse confirmado), "baixa" (especulacao)
+- "gravidade" em lesoes: "alta" (titular, longa ausencia), "media" (titular, curta ausencia), "baixa" (reserva ou duvida)
+- Linguagem jornalistica profissional em portugues brasileiro
+- NAO use markdown, apenas texto corrido dentro do JSON
+- Responda APENAS com o JSON, sem texto antes ou depois`;
+}

@@ -840,95 +840,34 @@
             },
 
             Market: () => {
-                const transferencias = Data.mercado || {
-                    destaque: [],
-                    rumores: [],
-                    lesoes: []
-                };
+                const m = Data.mercado || { destaque: [], rumores: [], lesoes: [], impacto: '', fontes: [] };
+                const isLoading = Data._mercadoLoading;
+                const totalNoticias = (m.destaque?.length || 0) + (m.rumores?.length || 0) + (m.lesoes?.length || 0);
+                const atualizadoEm = m.atualizadoEm || m.atualizadoEmISO || '';
+                let dataFormatada = '';
+                if (atualizadoEm) {
+                    try {
+                        const d = atualizadoEm.toDate ? atualizadoEm.toDate() : new Date(atualizadoEm);
+                        dataFormatada = d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    } catch(e) { dataFormatada = ''; }
+                }
+                const isAdmin = Auth.user && Auth.user.email === 'mateusmachado11m@gmail.com';
                 return `
                 <div class="animate-fade-in space-y-6">
                     <div class="bg-gradient-to-br from-app-surface to-app-bg p-6 rounded-2xl border border-app-primary/20 shadow-2xl">
-                        <h2 class="text-2xl font-black text-white mb-2"><i class="fas fa-exchange-alt text-app-primary mr-2"></i>Mercado da Bola</h2>
+                        <div class="flex items-center justify-between mb-2">
+                            <h2 class="text-2xl font-black text-white"><i class="fas fa-exchange-alt text-app-primary mr-2"></i>Mercado da Bola</h2>
+                            ${isAdmin ? '<button onclick="MercadoActions.atualizar(true)" class="px-3 py-1.5 bg-app-primary/20 hover:bg-app-primary/30 text-app-primary text-xs font-bold rounded-lg transition-all" id="btn-atualizar-mercado"><i class="fas fa-sync-alt mr-1"></i>Atualizar</button>' : ''}
+                        </div>
                         <p class="text-sm text-slate-300">Transferencias, rumores e lesoes que impactam a Loteca</p>
+                        ${dataFormatada ? '<div class="flex flex-wrap items-center gap-3 mt-3"><span class="text-xs text-slate-500"><i class="fas fa-clock mr-1"></i>Atualizado: ' + dataFormatada + '</span><span class="text-xs text-slate-500"><i class="fas fa-newspaper mr-1"></i>' + totalNoticias + ' noticias</span>' + (m.modelo && m.modelo.includes('grounding') ? '<span class="text-xs text-green-500"><i class="fas fa-check-circle mr-1"></i>Dados verificados via Google</span>' : '') + '</div>' : ''}
                     </div>
-
-                    <!-- TRANSFERENCIAS CONFIRMADAS -->
-                    <div class="bg-app-surface p-6 rounded-xl border border-green-500/20">
-                        <h3 class="text-white font-bold mb-4"><i class="fas fa-check-circle text-green-400 mr-2"></i>Transferencias Confirmadas</h3>
-                        ${transferencias.destaque.length > 0 ? transferencias.destaque.map(t => `
-                            <div class="flex items-center gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5">
-                                <div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-user-plus text-green-400"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="text-white font-bold text-sm">${t.jogador}</div>
-                                    <div class="text-xs text-slate-400">${t.de} <i class="fas fa-arrow-right text-app-primary mx-1"></i> ${t.para}</div>
-                                    <div class="text-xs text-slate-500 mt-1">${t.data || ''}</div>
-                                </div>
-                                ${t.valor ? `<div class="text-app-primary font-bold text-sm">${t.valor}</div>` : ''}
-                            </div>
-                        `).join('') : `
-                            <div class="text-center py-8">
-                                <i class="fas fa-newspaper text-4xl text-slate-700 mb-3"></i>
-                                <p class="text-sm text-slate-500">As transferencias confirmadas que impactam os jogos da Loteca serao exibidas aqui.</p>
-                                <p class="text-xs text-slate-600 mt-2">Dados atualizados automaticamente a cada concurso.</p>
-                            </div>
-                        `}
-                    </div>
-
-                    <!-- RUMORES -->
-                    <div class="bg-app-surface p-6 rounded-xl border border-yellow-500/20">
-                        <h3 class="text-white font-bold mb-4"><i class="fas fa-comment-dots text-yellow-400 mr-2"></i>Rumores e Negociacoes</h3>
-                        ${transferencias.rumores.length > 0 ? transferencias.rumores.map(r => `
-                            <div class="flex items-center gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5">
-                                <div class="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-question text-yellow-400"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="text-white font-bold text-sm">${r.jogador}</div>
-                                    <div class="text-xs text-slate-400">${r.descricao}</div>
-                                    <div class="text-xs text-slate-500 mt-1"><i class="fas fa-newspaper mr-1"></i>${r.fonte || 'Imprensa'}</div>
-                                </div>
-                                <span class="px-2 py-1 rounded text-[10px] font-bold ${r.probabilidade === 'alta' ? 'bg-green-500/20 text-green-400' : (r.probabilidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400')}">${(r.probabilidade || 'media').toUpperCase()}</span>
-                            </div>
-                        `).join('') : `
-                            <div class="text-center py-8">
-                                <i class="fas fa-comment-slash text-4xl text-slate-700 mb-3"></i>
-                                <p class="text-sm text-slate-500">Rumores e negociacoes em andamento serao exibidos aqui.</p>
-                            </div>
-                        `}
-                    </div>
-
-                    <!-- LESOES E DESFALQUES -->
-                    <div class="bg-app-surface p-6 rounded-xl border border-red-500/20">
-                        <h3 class="text-white font-bold mb-4"><i class="fas fa-medkit text-red-400 mr-2"></i>Lesoes e Desfalques</h3>
-                        ${transferencias.lesoes.length > 0 ? transferencias.lesoes.map(l => `
-                            <div class="flex items-center gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5">
-                                <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-heartbeat text-red-400"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="text-white font-bold text-sm">${l.jogador} <span class="text-xs text-slate-400 font-normal">(${l.time})</span></div>
-                                    <div class="text-xs text-slate-400">${l.descricao}</div>
-                                    <div class="text-xs text-slate-500 mt-1">Previsao: ${l.previsao || 'Indefinida'}</div>
-                                </div>
-                                <span class="px-2 py-1 rounded text-[10px] font-bold ${l.gravidade === 'alta' ? 'bg-red-500/20 text-red-400' : (l.gravidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400')}">${(l.gravidade || 'media').toUpperCase()}</span>
-                            </div>
-                        `).join('') : `
-                            <div class="text-center py-8">
-                                <i class="fas fa-notes-medical text-4xl text-slate-700 mb-3"></i>
-                                <p class="text-sm text-slate-500">Lesoes e desfalques dos times da Loteca serao exibidos aqui.</p>
-                            </div>
-                        `}
-                    </div>
-
-                    <!-- IMPACTO NA LOTECA -->
-                    <div class="bg-app-surface p-6 rounded-xl border border-violet-500/20">
-                        <h3 class="text-white font-bold mb-4"><i class="fas fa-lightbulb text-violet-400 mr-2"></i>Impacto na Loteca</h3>
-                        <p class="text-sm text-slate-300 leading-relaxed">
-                            ${Data.mercado && Data.mercado.impacto ? Data.mercado.impacto : 'A analise de impacto das movimentacoes de mercado nos jogos da Loteca sera gerada automaticamente quando o concurso for publicado. Fique atento as transferencias e lesoes que podem mudar o rumo dos jogos!'}
-                        </p>
-                    </div>
+                    ${isLoading ? '<div class="bg-app-surface p-12 rounded-xl border border-app-primary/20 text-center"><div class="animate-spin w-12 h-12 border-4 border-app-primary/30 border-t-app-primary rounded-full mx-auto mb-4"></div><p class="text-white font-bold">Buscando noticias nos portais esportivos...</p><p class="text-xs text-slate-400 mt-2">Consultando ge.globo, Gazzetta, Marca, BBC Sport e outros</p><p class="text-xs text-slate-500 mt-1" id="mercado-loading-status">Isso pode levar ate 2 minutos</p></div>' : ''}
+                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-green-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-check-circle text-green-400 mr-2"></i>Transferencias Confirmadas</h3>' + (m.destaque.length > 0 ? '<span class="px-2 py-0.5 bg-green-500/20 text-green-400 text-[10px] font-bold rounded">' + m.destaque.length + '</span>' : '') + '</div>' + (m.destaque.length > 0 ? m.destaque.map(t => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-user-plus text-green-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + t.jogador + '</div><div class="text-xs text-slate-400 mt-1">' + t.de + ' <i class="fas fa-arrow-right text-app-primary mx-1"></i> ' + t.para + '</div>' + (t.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + t.impactoLoteca + '</div>' : '') + '<div class="flex items-center gap-3 mt-1">' + (t.data ? '<span class="text-xs text-slate-500"><i class="fas fa-calendar mr-1"></i>' + t.data + '</span>' : '') + (t.fonte ? '<span class="text-xs text-slate-500"><i class="fas fa-newspaper mr-1"></i>' + t.fonte + '</span>' : '') + '</div></div>' + (t.valor ? '<div class="text-app-primary font-bold text-sm whitespace-nowrap">' + t.valor + '</div>' : '') + '</div>').join('') : '<div class="text-center py-8"><i class="fas fa-newspaper text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Nenhuma transferencia confirmada encontrada para os times deste concurso.</p></div>') + '</div>' : ''}
+                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-yellow-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-comment-dots text-yellow-400 mr-2"></i>Rumores e Negociacoes</h3>' + (m.rumores.length > 0 ? '<span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] font-bold rounded">' + m.rumores.length + '</span>' : '') + '</div>' + (m.rumores.length > 0 ? m.rumores.map(r => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-question text-yellow-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + r.jogador + '</div><div class="text-xs text-slate-400 mt-1">' + r.descricao + '</div>' + (r.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + r.impactoLoteca + '</div>' : '') + (r.fonte ? '<div class="text-xs text-slate-500 mt-1"><i class="fas fa-newspaper mr-1"></i>' + r.fonte + '</div>' : '') + '</div><span class="px-2 py-1 rounded text-[10px] font-bold ' + (r.probabilidade === 'alta' ? 'bg-green-500/20 text-green-400' : (r.probabilidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400')) + '">' + (r.probabilidade || 'media').toUpperCase() + '</span></div>').join('') : '<div class="text-center py-8"><i class="fas fa-comment-slash text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Nenhum rumor relevante encontrado para os times deste concurso.</p></div>') + '</div>' : ''}
+                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-red-500/20"><div class="flex items-center justify-between mb-4"><h3 class="text-white font-bold"><i class="fas fa-medkit text-red-400 mr-2"></i>Lesoes e Desfalques</h3>' + (m.lesoes.length > 0 ? '<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold rounded">' + m.lesoes.length + '</span>' : '') + '</div>' + (m.lesoes.length > 0 ? m.lesoes.map(l => '<div class="flex items-start gap-4 bg-black/20 p-4 rounded-lg mb-3 border border-white/5"><div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-1"><i class="fas fa-heartbeat text-red-400"></i></div><div class="flex-1"><div class="text-white font-bold text-sm">' + l.jogador + ' <span class="text-xs text-slate-400 font-normal">(' + l.time + ')</span></div><div class="text-xs text-slate-400 mt-1">' + l.descricao + '</div>' + (l.impactoLoteca ? '<div class="text-xs text-violet-400 mt-1"><i class="fas fa-futbol mr-1"></i>' + l.impactoLoteca + '</div>' : '') + '<div class="text-xs text-slate-500 mt-1"><i class="fas fa-clock mr-1"></i>Previsao: ' + (l.previsao || 'Indefinida') + '</div></div><span class="px-2 py-1 rounded text-[10px] font-bold ' + (l.gravidade === 'alta' ? 'bg-red-500/20 text-red-400' : (l.gravidade === 'media' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400')) + '">' + (l.gravidade || 'media').toUpperCase() + '</span></div>').join('') : '<div class="text-center py-8"><i class="fas fa-notes-medical text-4xl text-slate-700 mb-3"></i><p class="text-sm text-slate-500">Nenhuma lesao ou desfalque relevante encontrado para os times deste concurso.</p></div>') + '</div>' : ''}
+                    ${!isLoading ? '<div class="bg-app-surface p-6 rounded-xl border border-violet-500/20"><h3 class="text-white font-bold mb-4"><i class="fas fa-lightbulb text-violet-400 mr-2"></i>Impacto na Loteca</h3><div class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">' + (m.impacto || 'Publique um concurso para gerar automaticamente a analise de impacto das movimentacoes de mercado nos jogos da Loteca.') + '</div></div>' : ''}
+                    ${!isLoading && m.fontes && m.fontes.length > 0 ? '<div class="bg-app-surface p-4 rounded-xl border border-white/5"><h4 class="text-xs font-bold text-slate-400 mb-3"><i class="fas fa-link mr-1"></i>Fontes consultadas (' + m.fontes.length + ')</h4><div class="flex flex-wrap gap-2">' + m.fontes.map(f => '<a href="' + f.url + '" target="_blank" rel="noopener" class="text-[10px] px-2 py-1 bg-black/30 text-slate-400 hover:text-app-primary rounded border border-white/5 transition-colors truncate max-w-[200px]" title="' + f.titulo + '">' + (f.titulo || f.url) + '</a>').join('') + '</div></div>' : ''}
                 </div>
                 `;
             },
@@ -1284,7 +1223,7 @@
                     case 'analysis-current': main.innerHTML = Views.AnalysisCurrent(); break;
                     case 'palpites': main.innerHTML = Views.Palpites(); break;
                     case 'ai-xray': main.innerHTML = Views.AiXray(); break;
-                    case 'market': main.innerHTML = Views.Market(); break;
+                    case 'market': main.innerHTML = Views.Market(); setTimeout(() => MercadoActions.carregarSeNecessario(), 100); break;
                     case 'prices': main.innerHTML = Views.Prices(); break;
                     case 'ranking': main.innerHTML = Views.Ranking(); break;
                     case 'admin': main.innerHTML = Views.Admin(); setTimeout(() => { AdminActions.carregarAlertas(); AdminActions.carregarConcursosParaRegen(); }, 500); break;
@@ -1927,9 +1866,89 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                 } catch (error) {
                     console.error('Erro ao carregar concurso anterior:', error);
                 }
+            },
+
+            async carregarMercado(forceRefresh = false) {
+                if (!isFirebaseActive) return;
+                try {
+                    const db = firebase.firestore();
+                    const configDoc = await db.collection('config').doc('atual').get();
+                    if (!configDoc.exists) return;
+                    const concursoId = configDoc.data().concursoProgramacao;
+                    if (!concursoId) return;
+
+                    // Tentar carregar do Firestore primeiro (cache)
+                    if (!forceRefresh) {
+                        const mercadoDoc = await db.collection('mercado').doc(concursoId).get();
+                        if (mercadoDoc.exists) {
+                            const data = mercadoDoc.data();
+                            Data.mercado = data;
+                            Data._mercadoLoading = false;
+                            console.log(`Mercado carregado do Firestore: ${(data.destaque?.length||0) + (data.rumores?.length||0) + (data.lesoes?.length||0)} noticias`);
+                            if (State.currentRoute === 'market') Router.render();
+                            return;
+                        }
+                    }
+
+                    // Se não tem cache ou forceRefresh, chamar a Cloud Function
+                    Data._mercadoLoading = true;
+                    if (State.currentRoute === 'market') Router.render();
+
+                    const user = firebase.auth().currentUser;
+                    if (!user) {
+                        console.log('Usuario nao autenticado. Mercado nao pode ser buscado via API.');
+                        Data._mercadoLoading = false;
+                        if (State.currentRoute === 'market') Router.render();
+                        return;
+                    }
+
+                    const token = await user.getIdToken();
+                    const response = await fetch('https://us-central1-loteca-pro-mateus-1767825041.cloudfunctions.net/buscarMercado', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                        body: JSON.stringify({ concurso: concursoId, forceRefresh: forceRefresh })
+                    });
+
+                    const result = await response.json();
+                    if (result.success && result.mercado) {
+                        Data.mercado = result.mercado;
+                        console.log(`Mercado atualizado via API: ${result.mercado.totalNoticias || 0} noticias (cache=${result.fromCache})`);
+                    }
+                    Data._mercadoLoading = false;
+                    if (State.currentRoute === 'market') Router.render();
+                } catch (error) {
+                    console.error('Erro ao carregar mercado:', error);
+                    Data._mercadoLoading = false;
+                    if (State.currentRoute === 'market') Router.render();
+                }
             }
         };
-        
+
+        // MERCADO ACTIONS
+        const MercadoActions = {
+            _loaded: false,
+            async carregarSeNecessario() {
+                // Carregar do Firestore se ainda não carregou
+                if (!this._loaded && (!Data.mercado || !Data.mercado.concurso)) {
+                    this._loaded = true;
+                    await DataLoader.carregarMercado(false);
+                }
+            },
+            async atualizar(forceRefresh = false) {
+                const btn = document.getElementById('btn-atualizar-mercado');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Buscando...';
+                }
+                this._loaded = true;
+                await DataLoader.carregarMercado(forceRefresh);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i>Atualizar';
+                }
+            }
+        };
+
         // ADMIN ACTIONS
         const AdminActions = {
             async processar(tipo) {
@@ -2122,7 +2141,8 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     { icon: 'fa-clipboard-check', label: 'Validando dados', sublabel: `${nJogos} jogos do concurso ${dados.concurso}` },
                     { icon: 'fa-robot', label: 'Gerando analise com IA', sublabel: 'Conectando ao Gemini...' },
                     { icon: 'fa-database', label: 'Salvando no banco de dados', sublabel: 'Aguardando...' },
-                    { icon: 'fa-globe', label: 'Publicando no site', sublabel: 'Aguardando...' }
+                    { icon: 'fa-globe', label: 'Publicando no site', sublabel: 'Aguardando...' },
+                    { icon: 'fa-exchange-alt', label: 'Buscando noticias de mercado', sublabel: 'Aguardando...' }
                 ];
 
                 ProgressOverlay.show(`Publicando ${tipoLabel} #${dados.concurso}`, steps);
@@ -2231,7 +2251,33 @@ Responda APENAS com o resumo na primeira linha e a análise nas linhas seguintes
                     await db.collection('config').doc('atual').set(configUpdate, { merge: true });
 
                     ProgressOverlay.completeStep(3);
-
+                    // ETAPA 5: Buscar noticias de mercado (apenas para programacao)
+                    if (dados.tipo === 'programacao') {
+                        ProgressOverlay.activateStep(4, 'Buscando transferencias, lesoes e rumores...');
+                        try {
+                            const tokenMercado = await firebase.auth().currentUser.getIdToken();
+                            const mercadoResponse = await fetch('https://us-central1-loteca-pro-mateus-1767825041.cloudfunctions.net/buscarMercado', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tokenMercado },
+                                body: JSON.stringify({ concurso: dados.concurso, jogos: dados.jogos, forceRefresh: true })
+                            });
+                            const mercadoResult = await mercadoResponse.json();
+                            if (mercadoResult.success && mercadoResult.mercado) {
+                                Data.mercado = mercadoResult.mercado;
+                                MercadoActions._loaded = true;
+                                const total = mercadoResult.mercado.totalNoticias || 0;
+                                ProgressOverlay.updateSublabel(4, `${total} noticias encontradas!`);
+                                ProgressOverlay.completeStep(4);
+                            } else {
+                                ProgressOverlay.errorStep(4, 'Noticias indisponiveis - tente atualizar depois');
+                            }
+                        } catch (mercadoError) {
+                            console.error('Erro ao buscar mercado:', mercadoError);
+                            ProgressOverlay.errorStep(4, 'Erro na busca - tente atualizar depois no Mercado');
+                        }
+                    } else {
+                        ProgressOverlay.completeStep(4);
+                    }
                     // CONCLUIDO
                     if (analiseOk) {
                         ProgressOverlay.finish(true, `Concurso ${dados.concurso} publicado com analise IA completa!`);

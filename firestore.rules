@@ -55,6 +55,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
+    // Mercado da Bola - todos podem ler, sistema/admin escreve
+    match /mercado/{concursoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
     // Dados da Loteca (compatibilidade - deprecated)
     match /loteca/{document=**} {
       allow read: if true;
